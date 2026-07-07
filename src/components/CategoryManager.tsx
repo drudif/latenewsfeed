@@ -1,0 +1,46 @@
+"use client";
+import { useState } from "react";
+
+type Cat = { slug: string; name: string };
+
+export default function CategoryManager({ initial }: { initial: Cat[] }) {
+  const [cats, setCats] = useState<Cat[]>(initial);
+  const [name, setName] = useState("");
+
+  async function add() {
+    if (!name.trim()) return;
+    const res = await fetch("/api/categories", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (res.ok) { const { category } = await res.json(); setCats((c) => [...c, category]); setName(""); }
+  }
+  async function remove(slug: string) {
+    const res = await fetch("/api/categories", {
+      method: "DELETE", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ slug }),
+    });
+    if (res.ok) setCats((c) => c.filter((x) => x.slug !== slug));
+  }
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold">Categorias</h2>
+      <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200 bg-white">
+        {cats.map((c) => (
+          <li key={c.slug} className="flex items-center justify-between px-3 py-2 text-sm">
+            <span>{c.name} <span className="text-neutral-400">({c.slug})</span></span>
+            {c.slug !== "outros" && (
+              <button onClick={() => remove(c.slug)} className="text-red-600 hover:underline">remover</button>
+            )}
+          </li>
+        ))}
+      </ul>
+      <div className="flex gap-2">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nova categoria"
+          className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-neutral-400" />
+        <button onClick={add} className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white">Adicionar</button>
+      </div>
+    </div>
+  );
+}
