@@ -1,6 +1,10 @@
-import { and, eq, isNull, isNotNull, sql, desc } from "drizzle-orm";
+import { and, eq, isNull, isNotNull, sql, desc, getTableColumns } from "drizzle-orm";
 import { inputs, attachments } from "@/db/schema";
 import { encodeCursor, decodeCursor } from "./cursor";
+
+// Postgres stores microseconds but a JS Date only keeps milliseconds. Emit a
+// full-precision ISO string so the pagination cursor never truncates.
+const createdAtIso = sql<string>`to_char(${inputs.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
 
 export type FeedItem = {
   id: string;
@@ -30,7 +34,7 @@ async function attachImages(db: any, items: any[]): Promise<FeedItem[]> {
   return items.map((i) => ({
     id: i.id, source: i.source, categorySlug: i.categorySlug, title: i.title,
     summary: i.summary, bodyText: i.bodyText, sender: i.sender,
-    createdAt: new Date(i.createdAt).toISOString(),
+    createdAt: i.createdAtIso,
     images: byInput.get(i.id) ?? [],
   }));
 }
@@ -39,7 +43,7 @@ function cursorClause(cursor?: string | null) {
   if (!cursor) return undefined;
   const c = decodeCursor(cursor);
   if (!c) return undefined;
-  return sql`(${inputs.createdAt}, ${inputs.id}) < (${new Date(c.createdAt)}, ${c.id})`;
+  return sql`(${inputs.createdAt}, ${inputs.id}) < (${c.createdAt}::timestamptz, ${c.id})`;
 }
 
 function pageResult(rows: FeedItem[], limit: number) {
@@ -56,7 +60,7 @@ export async function getFeed(db: any, args: FeedArgs) {
   const cur = cursorClause(args.cursor);
   if (cur) conds.push(cur);
 
-  const rows = await db.select().from(inputs)
+  const rows = await db.select({ ...getTableColumns(inputs), createdAtIso }).from(inputs)
     .where(and(...conds))
     .orderBy(desc(inputs.createdAt), desc(inputs.id))
     .limit(args.limit + 1);
@@ -82,7 +86,7 @@ export async function getArchive(db: any, args: FeedArgs & { q?: string | null }
   const cur = cursorClause(args.cursor);
   if (cur) conds.push(cur);
 
-  const rows = await db.select().from(inputs)
+  const rows = await db.select({ ...getTableColumns(inputs), createdAtIso }).from(inputs)
     .where(and(...conds))
     .orderBy(desc(inputs.createdAt), desc(inputs.id))
     .limit(args.limit + 1);

@@ -36,4 +36,25 @@ describe("getFeed", () => {
     const res = await getFeed(db, { limit: 20, category: "inspiracao" });
     expect(res.items.map((i) => i.title)).toEqual(["b"]);
   });
+
+  it("does not skip rows that share the same millisecond (microsecond cursor)", async () => {
+    const db = await makeTestDb(); await seedCategories(db);
+    const { sql } = await import("drizzle-orm");
+    // Two unread rows in the SAME millisecond but different microseconds.
+    await db.insert(inputs).values({
+      source: "paste", categorySlug: "ler-depois", title: "newer", bodyText: "b",
+      createdAt: sql`'2026-01-01T00:00:00.123456Z'::timestamptz`,
+    } as any);
+    await db.insert(inputs).values({
+      source: "paste", categorySlug: "ler-depois", title: "older", bodyText: "b",
+      createdAt: sql`'2026-01-01T00:00:00.123111Z'::timestamptz`,
+    } as any);
+
+    const page1 = await getFeed(db, { limit: 1 });
+    expect(page1.items.map((i) => i.title)).toEqual(["newer"]);
+    expect(page1.nextCursor).toBeTruthy();
+
+    const page2 = await getFeed(db, { limit: 1, cursor: page1.nextCursor! });
+    expect(page2.items.map((i) => i.title)).toEqual(["older"]); // must NOT be skipped
+  });
 });
