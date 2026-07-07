@@ -1,8 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { OUTROS_SLUG } from "./categories";
 
-export const MODEL = "claude-haiku-4-5-20251001";
+export const MODEL = "gemini-2.5-flash";
 
 export type ClassifyPayload = {
   subject?: string | null;
@@ -18,6 +17,10 @@ export type Classification = {
 };
 
 export type CategoryLite = { slug: string; name: string };
+
+// Injectable transport: given a Gemini request body, return the model's raw text
+// (which — thanks to responseSchema — is a JSON string). Tests inject a fake.
+export type GenerateFn = (body: unknown) => Promise<string>;
 
 const resultSchema = z.object({
   category_slug: z.string().min(1),
@@ -44,64 +47,68 @@ export function fallbackClassification(payload: ClassifyPayload): Classification
   return { categorySlug: OUTROS_SLUG, title: title.slice(0, 200), summary: null };
 }
 
-export function buildClassifyRequest(payload: ClassifyPayload, categories: CategoryLite[]) {
+export function buildGeminiRequest(payload: ClassifyPayload, categories: CategoryLite[]) {
   const slugs = categories.map((c) => c.slug);
   const list = categories.map((c) => `- ${c.slug}: ${c.name}`).join("\n");
 
-  const content: Anthropic.ContentBlockParam[] = [];
+  const parts: Array<Record<string, unknown>> = [];
   if (payload.image) {
-    content.push({
-      type: "image",
-      source: { type: "base64", media_type: payload.image.mediaType as never, data: payload.image.base64 },
-    });
+    parts.push({ inline_data: { mime_type: payload.image.mediaType, data: payload.image.base64 } });
   }
   const textParts = [
     payload.sender ? `Remetente: ${payload.sender}` : "",
     payload.subject ? `Assunto: ${payload.subject}` : "",
     payload.text ? `Conteúdo:\n${payload.text}` : "",
   ].filter(Boolean).join("\n\n");
-  content.push({
-    type: "text",
+  parts.push({
     text:
       `Classifique este item numa das categorias abaixo e gere um título curto (máx ~8 palavras) ` +
       `e um resumo de uma frase, em português.\n\nCategorias:\n${list}\n\n${textParts || "(sem texto — use a imagem)"}`,
   });
 
   return {
-    model: MODEL,
-    max_tokens: 400,
-    tools: [{
-      name: "classificar",
-      description: "Registra a classificação do item.",
-      input_schema: {
-        type: "object" as const,
+    contents: [{ parts }],
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
         properties: {
-          category_slug: { type: "string", enum: slugs },
-          title: { type: "string" },
-          summary: { type: "string" },
+          category_slug: { type: "STRING", enum: slugs },
+          title: { type: "STRING" },
+          summary: { type: "STRING" },
         },
         required: ["category_slug", "title", "summary"],
       },
-    }],
-    tool_choice: { type: "tool" as const, name: "classificar" },
-    messages: [{ role: "user" as const, content }],
+    },
   };
 }
 
-type MessagesClient = { messages: { create: (args: unknown) => Promise<{ content: unknown[] }> } };
+// Real transport — only called at runtime. Kept inside classifyInput's try, so a
+// missing key or a network/API error falls back instead of losing the input.
+async function geminiGenerate(body: unknown): Promise<string> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("GEMINI_API_KEY not set");
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
+    { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
+  );
+  if (!res.ok) throw new Error(`gemini http ${res.status}`);
+  const data = (await res.json()) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (typeof text !== "string") throw new Error("gemini: no text in response");
+  return text;
+}
 
 export async function classifyInput(
   payload: ClassifyPayload,
   categories: CategoryLite[],
-  client?: MessagesClient,
+  generate: GenerateFn = geminiGenerate,
 ): Promise<Classification> {
-  const anthropic = client ?? (new Anthropic() as unknown as MessagesClient);
   try {
-    const res = await anthropic.messages.create(buildClassifyRequest(payload, categories));
-    const toolUse = (res.content as Array<{ type: string; name?: string; input?: unknown }>)
-      .find((b) => b.type === "tool_use" && b.name === "classificar");
-    if (!toolUse) throw new Error("no tool_use block");
-    return parseClassification(toolUse.input, categories.map((c) => c.slug));
+    const raw = await generate(buildGeminiRequest(payload, categories));
+    return parseClassification(JSON.parse(raw), categories.map((c) => c.slug));
   } catch {
     return fallbackClassification(payload);
   }

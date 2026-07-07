@@ -10,7 +10,7 @@ const CATS = [
 ];
 
 describe("parseClassification", () => {
-  it("accepts a valid tool result", () => {
+  it("accepts a valid result", () => {
     const out = parseClassification(
       { category_slug: "inspiracao", title: "Um site legal", summary: "Ref de UI." },
       CATS.map((c) => c.slug),
@@ -45,25 +45,28 @@ describe("fallbackClassification", () => {
 });
 
 describe("classifyInput", () => {
-  it("returns parsed result when the client succeeds", async () => {
-    const fakeClient = {
-      messages: {
-        create: async () => ({
-          content: [{ type: "tool_use", name: "classificar",
-            input: { category_slug: "ler-depois", title: "Artigo", summary: "resumo" } }],
-        }),
-      },
-    };
-    const out = await classifyInput(
-      { subject: "s", text: "t" }, CATS, fakeClient as never,
-    );
+  it("returns parsed result when the model succeeds (JSON text)", async () => {
+    const generate = async () =>
+      JSON.stringify({ category_slug: "ler-depois", title: "Artigo", summary: "resumo" });
+    const out = await classifyInput({ subject: "s", text: "t" }, CATS, generate);
     expect(out.categorySlug).toBe("ler-depois");
+    expect(out.title).toBe("Artigo");
   });
-  it("falls back when the client throws", async () => {
-    const fakeClient = { messages: { create: async () => { throw new Error("boom"); } } };
-    const out = await classifyInput(
-      { subject: "Assunto Y", text: "t" }, CATS, fakeClient as never,
-    );
+  it("falls back when the model throws", async () => {
+    const generate = async () => { throw new Error("boom"); };
+    const out = await classifyInput({ subject: "Assunto Y", text: "t" }, CATS, generate);
     expect(out).toEqual({ categorySlug: "outros", title: "Assunto Y", summary: null });
+  });
+  it("falls back when the model returns invalid JSON", async () => {
+    const generate = async () => "not json at all";
+    const out = await classifyInput({ subject: "Assunto Z", text: "t" }, CATS, generate);
+    expect(out.categorySlug).toBe("outros");
+    expect(out.title).toBe("Assunto Z");
+  });
+  it("falls back when the model returns an unknown category", async () => {
+    const generate = async () =>
+      JSON.stringify({ category_slug: "inexistente", title: "x", summary: "y" });
+    const out = await classifyInput({ subject: "Assunto W", text: "t" }, CATS, generate);
+    expect(out.categorySlug).toBe("outros");
   });
 });

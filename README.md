@@ -31,7 +31,9 @@ Abra `https://<app>/?k=<PORTAL_SECRET>` uma vez para gravar o cookie.
    ```
    docker run -d --name portal-pg -e POSTGRES_PASSWORD=pass -e POSTGRES_DB=portal_inputs -p 5432:5432 postgres:16
    ```
-2. Copie `.env.example` para `.env` e preencha `DATABASE_URL`, `ANTHROPIC_API_KEY`, `R2_*`, `PORTAL_SECRET`, `INBOUND_SECRET`, `NEXT_PUBLIC_R2_PUBLIC_URL`.
+2. Copie `.env.example` para `.env` e preencha `DATABASE_URL`, `GEMINI_API_KEY`, `R2_*`, `PORTAL_SECRET`, `INBOUND_SECRET`, `NEXT_PUBLIC_R2_PUBLIC_URL`.
+
+   > A classificação usa **Google Gemini** (`gemini-2.5-flash`) via `GEMINI_API_KEY`. Sem a chave (ou em erro/timeout), o app cai no fallback e marca como "Outros" — nenhum input se perde.
 3. `npm run db:push && npm run seed`
 4. `npm run simular-inbound -- "Um artigo sobre tipografia que quero ler depois"`
 5. `npm run dev` e abra `http://localhost:3000/?k=<PORTAL_SECRET>` — o input aparece no feed classificado por IA. Sem `?k=` → 403.
