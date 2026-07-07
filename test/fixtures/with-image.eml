@@ -1,0 +1,17 @@
+From: Fulano <fulano@example.com>
+To: latenewsfeed+f.drudi@gmail.com
+Subject: Screenshot
+Message-ID: <img456@example.com>
+Content-Type: multipart/mixed; boundary="BOUND"
+
+--BOUND
+Content-Type: text/plain; charset=utf-8
+
+veja isso
+--BOUND
+Content-Type: image/png; name="shot.png"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="shot.png"
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==
+--BOUND--
