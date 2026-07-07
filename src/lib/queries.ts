@@ -65,6 +65,14 @@ export async function getFeed(db: any, args: FeedArgs) {
   return pageResult(withImages, args.limit);
 }
 
+export async function markRead(db: any, id: string): Promise<boolean> {
+  const res = await db.update(inputs)
+    .set({ readAt: new Date() })
+    .where(and(eq(inputs.id, id), isNull(inputs.readAt)))
+    .returning({ id: inputs.id });
+  return res.length > 0;
+}
+
 export async function getArchive(db: any, args: FeedArgs & { q?: string | null }) {
   const conds = [isNotNull(inputs.readAt)];
   if (args.category) conds.push(eq(inputs.categorySlug, args.category));
