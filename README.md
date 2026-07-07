@@ -17,7 +17,7 @@ Defina `APP_URL` e `INBOUND_SECRET` nas variáveis do serviço de cron.
 
 ## Gmail
 - Conta `latenewsfeed@gmail.com` com 2FA ligado → gere uma **senha de app** → `GMAIL_APP_PASSWORD`.
-- Encaminhe/envie inputs para `latenewsfeed+f.drudi@gmail.com`.
+- Encaminhe/envie inputs para `latenewsfeed@gmail.com`.
 
 ## Cloudflare R2
 - Crie um bucket, gere Access Key/Secret, habilite acesso público (r2.dev) → preencha `R2_*`.
@@ -38,7 +38,7 @@ Abra `https://<app>/?k=<PORTAL_SECRET>` uma vez para gravar o cookie.
 4. `npm run simular-inbound -- "Um artigo sobre tipografia que quero ler depois"`
 5. `npm run dev` e abra `http://localhost:3000/?k=<PORTAL_SECRET>` — o input aparece no feed classificado por IA. Sem `?k=` → 403.
 6. Colar screenshot no composer, marcar como lido (vai pro /arquivo), buscar no arquivo, adicionar categoria em /ajustes.
-7. Poll real do Gmail: preencha `GMAIL_*`, encaminhe um e-mail para `latenewsfeed+f.drudi@gmail.com`, depois:
+7. Poll real do Gmail: preencha `GMAIL_*`, encaminhe um e-mail para `latenewsfeed@gmail.com`, depois:
    ```
    curl -X POST http://localhost:3000/api/poll -H "x-inbound-secret: <INBOUND_SECRET>"
    ```
