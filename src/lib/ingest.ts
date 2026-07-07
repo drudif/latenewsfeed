@@ -46,7 +46,8 @@ export async function ingestInput(deps: IngestDeps, input: NormalizedInput): Pro
     try {
       const r2Key = await store.upload(img.buffer, img.contentType);
       uploaded.push({ r2Key, contentType: img.contentType, filename: img.filename, status: "ok" });
-    } catch {
+    } catch (err) {
+      console.error("ingest: R2 upload failed", err);
       uploaded.push({ r2Key: "", contentType: img.contentType, filename: img.filename, status: "failed" });
     }
   }
