@@ -9,7 +9,7 @@ export type Item = {
 
 const R2_PUBLIC = process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? "";
 
-export default function InputCard({ item, onRead }: { item: Item; onRead: (id: string) => void }) {
+export default function InputCard({ item, onRead, readOnly }: { item: Item; onRead: (id: string) => void; readOnly?: boolean }) {
   const [leaving, setLeaving] = useState(false);
   const time = new Date(item.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
@@ -42,10 +42,12 @@ export default function InputCard({ item, onRead }: { item: Item; onRead: (id: s
           )}
         </div>
       )}
-      <button onClick={markRead}
-        className="mt-3 rounded-lg border border-neutral-300 px-3 py-1 text-sm hover:bg-neutral-900 hover:text-white">
-        Marcar como lido
-      </button>
+      {!readOnly && (
+        <button onClick={markRead}
+          className="mt-3 rounded-lg border border-neutral-300 px-3 py-1 text-sm hover:bg-neutral-900 hover:text-white">
+          Marcar como lido
+        </button>
+      )}
     </article>
   );
 }

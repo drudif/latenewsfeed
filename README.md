@@ -21,6 +21,7 @@ Defina `APP_URL` e `INBOUND_SECRET` nas variáveis do serviço de cron.
 
 ## Cloudflare R2
 - Crie um bucket, gere Access Key/Secret, habilite acesso público (r2.dev) → preencha `R2_*`.
+- **Importante:** `NEXT_PUBLIC_R2_PUBLIC_URL` é embutida no build (client-side). Configure-a no Railway ANTES do build, senão as imagens do feed/arquivo quebram silenciosamente.
 
 ## Acesso
 Abra `https://<app>/?k=<PORTAL_SECRET>` uma vez para gravar o cookie.

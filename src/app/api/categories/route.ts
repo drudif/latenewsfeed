@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { listCategories, addCategory, renameCategory, deleteCategory } from "@/lib/categoriesRepo";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   return NextResponse.json({ categories: await listCategories(db) });
@@ -20,8 +21,12 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   const { slug, name } = await req.json();
-  await renameCategory(db, String(slug), String(name));
-  return NextResponse.json({ ok: true });
+  try {
+    await renameCategory(db, String(slug), String(name));
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 400 });
+  }
 }
 
 export async function DELETE(req: NextRequest) {

@@ -16,7 +16,7 @@ export default function Feed({
   const sentinel = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async (reset: boolean, cat: string | null, cur: string | null) => {
-    if (loading) return;
+    if (!reset && loading) return;
     setLoading(true);
     const params = new URLSearchParams();
     if (cat) params.set("category", cat);
