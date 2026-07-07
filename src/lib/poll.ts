@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { pollState } from "@/db/schema";
 import { parseEmail } from "./email";
-import { ingestInput, type IngestDeps } from "./ingest";
+import { ingestInput, EmptyInputError, type IngestDeps } from "./ingest";
 import type { MailReader } from "./imap";
 
 let polling = false; // simple in-process lock (single Railway instance)
@@ -21,14 +21,29 @@ export async function runPoll(deps: PollDeps): Promise<{ ingested: number; skipp
     let ingested = 0;
 
     for (const msg of messages) {
+      let normalized;
       try {
-        const normalized = await parseEmail(msg.raw);
+        normalized = await parseEmail(msg.raw);
+      } catch (err) {
+        // Unparseable MIME will never succeed — skip past it so it can't block the queue.
+        console.error(`poll: unparseable message uid ${msg.uid}, skipping`, err);
+        processedUpTo = msg.uid;
+        continue;
+      }
+      try {
         await ingestInput(deps, normalized);
         processedUpTo = msg.uid; // advance only after success
         ingested += 1;
       } catch (err) {
-        console.error(`poll: failed on uid ${msg.uid}, stopping`, err);
-        break; // do not skip a message; retry next cycle
+        if (err instanceof EmptyInputError) {
+          // Nothing ingestable (no text, no image) — skip past it, don't block newer mail.
+          console.error(`poll: empty message uid ${msg.uid}, skipping`, err);
+          processedUpTo = msg.uid;
+          continue;
+        }
+        // Transient failure (e.g. DB) — stop and retry from here next cycle.
+        console.error(`poll: transient failure on uid ${msg.uid}, stopping`, err);
+        break;
       }
     }
 

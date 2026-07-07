@@ -4,6 +4,13 @@ import type { NormalizedInput } from "./email";
 import type { ImageStore } from "./r2";
 import type { Classification, ClassifyPayload, CategoryLite } from "./classify";
 
+export class EmptyInputError extends Error {
+  constructor() {
+    super("empty input: no text and no images");
+    this.name = "EmptyInputError";
+  }
+}
+
 // `any` so the same code runs against prod postgres.js AND pglite in tests.
 // Every call site is covered by tests, so this is a deliberate escape hatch.
 type AnyDb = any;
@@ -23,7 +30,7 @@ export async function ingestInput(deps: IngestDeps, input: NormalizedInput): Pro
 
   const hasText = input.text.trim().length > 0;
   if (!hasText && input.images.length === 0) {
-    throw new Error("empty input: no text and no images");
+    throw new EmptyInputError();
   }
 
   // Dedupe by message id.

@@ -47,4 +47,16 @@ describe("runPoll", () => {
     const state = await db.select().from(pollState);
     expect(state[0].lastUid).toBe(10);
   });
+
+  it("skips a poison (empty) message and advances past it", async () => {
+    const db = await makeTestDb(); await seedCategories(db); await initState(db);
+    const reader = new FakeMailReader([
+      { uid: 20, raw: fx("empty.eml") },
+      { uid: 21, raw: fx("plain.eml") },
+    ]);
+    const res = await runPoll({ db, store, classifier, reader });
+    expect(res.ingested).toBe(1); // only plain.eml ingests
+    const state = await db.select().from(pollState);
+    expect(state[0].lastUid).toBe(21); // advanced PAST the poison message
+  });
 });
