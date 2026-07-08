@@ -1,7 +1,22 @@
 import { describe, it, expect } from "vitest";
 import {
-  parseClassification, fallbackClassification, classifyInput,
+  parseClassification, fallbackClassification, classifyInput, normalizeBullets,
 } from "@/lib/classify";
+
+describe("normalizeBullets", () => {
+  it("puts each glued bullet on its own line", () => {
+    expect(normalizeBullets("- a- b- c")).toBe("- a\n- b\n- c");
+  });
+  it("leaves already-separated bullets intact", () => {
+    expect(normalizeBullets("- a\n- b")).toBe("- a\n- b");
+  });
+  it("does not break hyphenated words", () => {
+    expect(normalizeBullets("Texto com bem-vindo no meio.")).toBe("Texto com bem-vindo no meio.");
+  });
+  it("passes through null", () => {
+    expect(normalizeBullets(null)).toBeNull();
+  });
+});
 
 const CATS = [
   { slug: "ler-depois", name: "Ler / Ver depois" },

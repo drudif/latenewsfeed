@@ -28,6 +28,14 @@ const resultSchema = z.object({
   summary: z.string().max(4000).optional().nullable(),
 });
 
+// O modelo às vezes devolve bullets grudados ("- a- b- c"). Garante que cada
+// bullet "- " comece em sua própria linha, sem tocar em traços no meio de
+// palavras (ex: "bem-vindo") nem em quebras já existentes.
+export function normalizeBullets(s: string | null | undefined): string | null {
+  if (!s) return s ?? null;
+  return s.replace(/([^\n])[ \t]*-[ \t]+/g, "$1\n- ").trim();
+}
+
 export function parseClassification(raw: unknown, validSlugs: string[]): Classification {
   const parsed = resultSchema.parse(raw);
   if (!validSlugs.includes(parsed.category_slug)) {
@@ -36,7 +44,7 @@ export function parseClassification(raw: unknown, validSlugs: string[]): Classif
   return {
     categorySlug: parsed.category_slug,
     title: parsed.title,
-    summary: parsed.summary ?? null,
+    summary: normalizeBullets(parsed.summary),
   };
 }
 
@@ -62,13 +70,16 @@ export function buildGeminiRequest(payload: ClassifyPayload, categories: Categor
   ].filter(Boolean).join("\n\n");
   parts.push({
     text:
-      `Você organiza a caixa de entrada pessoal de alguém. Para o item abaixo, em português:\n` +
-      `1) Escolha UMA categoria da lista.\n` +
-      `2) Gere um título curto (máx ~8 palavras).\n` +
-      `3) Gere um resumo COMPLETO do conteúdo, do começo ao fim — cobrindo todos os pontos, ` +
-      `dados e conclusões relevantes, NÃO apenas uma sinopse de uma frase. Seja fiel ao conteúdo. ` +
-      `Se houver vários tópicos, passos ou itens, organize em bullet points, uma linha por item ` +
-      `começando com "- ". Se for um único ponto simples, um parágrafo curto basta.\n\n` +
+      `Você organiza a caixa de entrada pessoal de alguém. Para o item abaixo, em português, ` +
+      `gere categoria, título (máx ~8 palavras) e resumo.\n\n` +
+      `REGRAS DO RESUMO (muito importante):\n` +
+      `- Resuma o conteúdo do começo ao fim, sem omitir NADA relevante.\n` +
+      `- Se houver uma lista, vários itens, tarefas, tópicos, decisões ou passos, crie UM BULLET ` +
+      `para CADA um, cada bullet em SUA PRÓPRIA LINHA começando com "- ". NUNCA colapse vários ` +
+      `itens numa frase só, e não junte itens diferentes no mesmo bullet.\n` +
+      `- Só use um parágrafo curto (sem bullets) se o conteúdo for realmente um único assunto simples.\n\n` +
+      `Exemplo — para o conteúdo "Tarefas: 1) comprar pão; 2) pagar aluguel; 3) ligar pro médico", ` +
+      `o resumo correto seria:\n- Comprar pão.\n- Pagar o aluguel.\n- Ligar para o médico.\n\n` +
       `Categorias:\n${list}\n\n${textParts || "(sem texto — resuma a imagem)"}`,
   });
 
@@ -111,15 +122,8 @@ async function geminiGenerate(body: unknown): Promise<string> {
     `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
     { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
   );
-  const raw = await res.text();
-  console.log(
-    "GEMINI_DEBUG status", res.status,
-    "hasThinking", JSON.stringify(body).includes("thinkingBudget"),
-    "rawLen", raw.length,
-    "raw", raw.slice(0, 700).replace(/\n/g, "\\n"),
-  );
   if (!res.ok) throw new Error(`gemini http ${res.status}`);
-  const data = JSON.parse(raw) as {
+  const data = (await res.json()) as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
   };
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
