@@ -25,7 +25,7 @@ export type GenerateFn = (body: unknown) => Promise<string>;
 const resultSchema = z.object({
   category_slug: z.string().min(1),
   title: z.string().min(1).max(200),
-  summary: z.string().max(500).optional().nullable(),
+  summary: z.string().max(4000).optional().nullable(),
 });
 
 export function parseClassification(raw: unknown, validSlugs: string[]): Classification {
@@ -62,13 +62,20 @@ export function buildGeminiRequest(payload: ClassifyPayload, categories: Categor
   ].filter(Boolean).join("\n\n");
   parts.push({
     text:
-      `Classifique este item numa das categorias abaixo e gere um título curto (máx ~8 palavras) ` +
-      `e um resumo de uma frase, em português.\n\nCategorias:\n${list}\n\n${textParts || "(sem texto — use a imagem)"}`,
+      `Você organiza a caixa de entrada pessoal de alguém. Para o item abaixo, em português:\n` +
+      `1) Escolha UMA categoria da lista.\n` +
+      `2) Gere um título curto (máx ~8 palavras).\n` +
+      `3) Gere um resumo COMPLETO do conteúdo, do começo ao fim — cobrindo todos os pontos, ` +
+      `dados e conclusões relevantes, NÃO apenas uma sinopse de uma frase. Seja fiel ao conteúdo. ` +
+      `Se houver vários tópicos, passos ou itens, organize em bullet points, uma linha por item ` +
+      `começando com "- ". Se for um único ponto simples, um parágrafo curto basta.\n\n` +
+      `Categorias:\n${list}\n\n${textParts || "(sem texto — resuma a imagem)"}`,
   });
 
   return {
     contents: [{ parts }],
     generationConfig: {
+      maxOutputTokens: 1200,
       responseMimeType: "application/json",
       responseSchema: {
         type: "OBJECT",
