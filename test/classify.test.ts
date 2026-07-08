@@ -1,22 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  parseClassification, fallbackClassification, classifyInput, normalizeBullets,
+  parseClassification, fallbackClassification, classifyInput, pointsToSummary,
 } from "@/lib/classify";
-
-describe("normalizeBullets", () => {
-  it("puts each glued bullet on its own line", () => {
-    expect(normalizeBullets("- a- b- c")).toBe("- a\n- b\n- c");
-  });
-  it("leaves already-separated bullets intact", () => {
-    expect(normalizeBullets("- a\n- b")).toBe("- a\n- b");
-  });
-  it("does not break hyphenated words", () => {
-    expect(normalizeBullets("Texto com bem-vindo no meio.")).toBe("Texto com bem-vindo no meio.");
-  });
-  it("passes through null", () => {
-    expect(normalizeBullets(null)).toBeNull();
-  });
-});
 
 const CATS = [
   { slug: "ler-depois", name: "Ler / Ver depois" },
@@ -24,22 +9,39 @@ const CATS = [
   { slug: "outros", name: "Outros" },
 ];
 
+describe("pointsToSummary", () => {
+  it("joins multiple points as bullet lines", () => {
+    expect(pointsToSummary(["Comprar pão", "Pagar aluguel"])).toBe("- Comprar pão\n- Pagar aluguel");
+  });
+  it("returns a single point as a plain paragraph", () => {
+    expect(pointsToSummary(["Um assunto simples."])).toBe("Um assunto simples.");
+  });
+  it("strips leading dashes the model may add", () => {
+    expect(pointsToSummary(["- já com traço", "outro"])).toBe("- já com traço\n- outro");
+  });
+  it("returns null for empty/blank", () => {
+    expect(pointsToSummary([])).toBeNull();
+    expect(pointsToSummary(["  ", ""])).toBeNull();
+    expect(pointsToSummary(null)).toBeNull();
+  });
+});
+
 describe("parseClassification", () => {
-  it("accepts a valid result", () => {
+  it("accepts a valid result and joins points", () => {
     const out = parseClassification(
-      { category_slug: "inspiracao", title: "Um site legal", summary: "Ref de UI." },
+      { category_slug: "inspiracao", title: "Um site legal", summary_points: ["Ref de UI", "Paleta de cores"] },
       CATS.map((c) => c.slug),
     );
-    expect(out).toEqual({ categorySlug: "inspiracao", title: "Um site legal", summary: "Ref de UI." });
+    expect(out).toEqual({ categorySlug: "inspiracao", title: "Um site legal", summary: "- Ref de UI\n- Paleta de cores" });
   });
   it("throws on an unknown category", () => {
     expect(() =>
-      parseClassification({ category_slug: "xpto", title: "t", summary: "s" }, ["outros"]),
+      parseClassification({ category_slug: "xpto", title: "t", summary_points: ["s"] }, ["outros"]),
     ).toThrow();
   });
   it("throws on a missing title", () => {
     expect(() =>
-      parseClassification({ category_slug: "outros", summary: "s" }, ["outros"]),
+      parseClassification({ category_slug: "outros", summary_points: ["s"] }, ["outros"]),
     ).toThrow();
   });
 });
@@ -62,10 +64,10 @@ describe("fallbackClassification", () => {
 describe("classifyInput", () => {
   it("returns parsed result when the model succeeds (JSON text)", async () => {
     const generate = async () =>
-      JSON.stringify({ category_slug: "ler-depois", title: "Artigo", summary: "resumo" });
+      JSON.stringify({ category_slug: "ler-depois", title: "Artigo", summary_points: ["ponto 1", "ponto 2"] });
     const out = await classifyInput({ subject: "s", text: "t" }, CATS, generate);
     expect(out.categorySlug).toBe("ler-depois");
-    expect(out.title).toBe("Artigo");
+    expect(out.summary).toBe("- ponto 1\n- ponto 2");
   });
   it("falls back when the model throws", async () => {
     const generate = async () => { throw new Error("boom"); };
@@ -80,7 +82,7 @@ describe("classifyInput", () => {
   });
   it("falls back when the model returns an unknown category", async () => {
     const generate = async () =>
-      JSON.stringify({ category_slug: "inexistente", title: "x", summary: "y" });
+      JSON.stringify({ category_slug: "inexistente", title: "x", summary_points: ["y"] });
     const out = await classifyInput({ subject: "Assunto W", text: "t" }, CATS, generate);
     expect(out.categorySlug).toBe("outros");
   });

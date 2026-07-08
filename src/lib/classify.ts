@@ -25,15 +25,18 @@ export type GenerateFn = (body: unknown) => Promise<string>;
 const resultSchema = z.object({
   category_slug: z.string().min(1),
   title: z.string().min(1).max(200),
-  summary: z.string().max(4000).optional().nullable(),
+  // Array em vez de string: força o modelo a enumerar um ponto por item, de
+  // forma estável (uma string livre colapsava listas em uma frase só).
+  summary_points: z.array(z.string()).max(60).optional().nullable(),
 });
 
-// O modelo às vezes devolve bullets grudados ("- a- b- c"). Garante que cada
-// bullet "- " comece em sua própria linha, sem tocar em traços no meio de
-// palavras (ex: "bem-vindo") nem em quebras já existentes.
-export function normalizeBullets(s: string | null | undefined): string | null {
-  if (!s) return s ?? null;
-  return s.replace(/([^\n])[ \t]*-[ \t]+/g, "$1\n- ").trim();
+// Junta os pontos num resumo: um único ponto vira um parágrafo simples; vários
+// pontos viram bullets (um por linha).
+export function pointsToSummary(points: string[] | null | undefined): string | null {
+  const pts = (points ?? []).map((p) => p.trim()).filter(Boolean);
+  if (pts.length === 0) return null;
+  if (pts.length === 1) return pts[0];
+  return pts.map((p) => `- ${p.replace(/^-\s*/, "")}`).join("\n");
 }
 
 export function parseClassification(raw: unknown, validSlugs: string[]): Classification {
@@ -44,7 +47,7 @@ export function parseClassification(raw: unknown, validSlugs: string[]): Classif
   return {
     categorySlug: parsed.category_slug,
     title: parsed.title,
-    summary: normalizeBullets(parsed.summary),
+    summary: pointsToSummary(parsed.summary_points),
   };
 }
 
@@ -71,16 +74,12 @@ export function buildGeminiRequest(payload: ClassifyPayload, categories: Categor
   parts.push({
     text:
       `Você organiza a caixa de entrada pessoal de alguém. Para o item abaixo, em português, ` +
-      `gere categoria, título (máx ~8 palavras) e resumo.\n\n` +
-      `REGRAS DO RESUMO (muito importante):\n` +
-      `- Resuma o conteúdo do começo ao fim, sem omitir NADA relevante.\n` +
-      `- Se houver uma lista, vários itens, tarefas, tópicos, decisões ou passos, crie UM BULLET ` +
-      `para CADA um, cada bullet em SUA PRÓPRIA LINHA começando com "- ". NUNCA colapse vários ` +
-      `itens numa frase só, e não junte itens diferentes no mesmo bullet.\n` +
-      `- Só use um parágrafo curto (sem bullets) se o conteúdo for realmente um único assunto simples.\n\n` +
-      `Exemplo — para o conteúdo "Tarefas: 1) comprar pão; 2) pagar aluguel; 3) ligar pro médico", ` +
-      `o resumo correto seria:\n- Comprar pão.\n- Pagar o aluguel.\n- Ligar para o médico.\n\n` +
-      `Categorias:\n${list}\n\n${textParts || "(sem texto — resuma a imagem)"}`,
+      `gere: a categoria, um título curto (máx ~8 palavras) e o resumo em pontos (summary_points).\n\n` +
+      `O resumo (summary_points) deve conter UM item de array para CADA tópico, tarefa, decisão, ` +
+      `item ou passo presente no conteúdo, cobrindo tudo do começo ao fim, sem omitir nada e sem ` +
+      `juntar itens diferentes num mesmo ponto. Se o conteúdo for um único assunto simples, use um ` +
+      `único item descrevendo-o. Seja fiel ao conteúdo.\n\n` +
+      `Categorias:\n${list}\n\n${textParts || "(sem texto — descreva/resuma a imagem)"}`,
   });
 
   return {
@@ -97,17 +96,16 @@ export function buildGeminiRequest(payload: ClassifyPayload, categories: Categor
         properties: {
           category_slug: { type: "STRING", enum: slugs, description: "A categoria escolhida da lista." },
           title: { type: "STRING", description: "Título curto e descritivo, máx ~8 palavras." },
-          summary: {
-            type: "STRING",
+          summary_points: {
+            type: "ARRAY",
+            items: { type: "STRING" },
             description:
-              "Resumo COMPLETO e detalhado do conteúdo, do começo ao fim: cubra TODOS os pontos, " +
-              "dados, decisões e conclusões relevantes — não é uma sinopse de uma frase. " +
-              "Se houver vários tópicos, itens, decisões ou passos, liste-os em bullets, uma linha " +
-              "por item começando com '- '. Fiel ao conteúdo, em português.",
+              "Um item para CADA tópico, tarefa, decisão, item ou passo do conteúdo, cobrindo tudo " +
+              "do começo ao fim. Um único item se o conteúdo for um assunto simples.",
           },
         },
-        propertyOrdering: ["category_slug", "title", "summary"],
-        required: ["category_slug", "title", "summary"],
+        propertyOrdering: ["category_slug", "title", "summary_points"],
+        required: ["category_slug", "title", "summary_points"],
       },
     },
   };
@@ -122,11 +120,8 @@ async function geminiGenerate(body: unknown): Promise<string> {
     `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
     { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
   );
-  const bodyStr = JSON.stringify(body);
-  console.log("GEMINI_BODY", bodyStr);
   if (!res.ok) throw new Error(`gemini http ${res.status}`);
-  const raw = await res.text();
-  const data = JSON.parse(raw) as {
+  const data = (await res.json()) as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
   };
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
