@@ -111,8 +111,15 @@ async function geminiGenerate(body: unknown): Promise<string> {
     `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
     { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
   );
+  const raw = await res.text();
+  console.log(
+    "GEMINI_DEBUG status", res.status,
+    "hasThinking", JSON.stringify(body).includes("thinkingBudget"),
+    "rawLen", raw.length,
+    "raw", raw.slice(0, 700).replace(/\n/g, "\\n"),
+  );
   if (!res.ok) throw new Error(`gemini http ${res.status}`);
-  const data = (await res.json()) as {
+  const data = JSON.parse(raw) as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
   };
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
