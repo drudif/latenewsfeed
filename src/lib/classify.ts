@@ -120,6 +120,7 @@ async function geminiGenerate(body: unknown): Promise<string> {
     `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
     { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
   );
+  console.log("GEMINI_BODY2", JSON.stringify(body));
   if (!res.ok) throw new Error(`gemini http ${res.status}`);
   const data = (await res.json()) as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
