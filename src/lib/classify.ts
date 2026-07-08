@@ -75,7 +75,11 @@ export function buildGeminiRequest(payload: ClassifyPayload, categories: Categor
   return {
     contents: [{ parts }],
     generationConfig: {
-      maxOutputTokens: 1200,
+      maxOutputTokens: 2000,
+      // Desliga o "thinking" do Gemini 2.5: com ele ligado o modelo às vezes
+      // ignora a instrução e devolve um resumo curto de uma frase. Desligado,
+      // ele segue o schema e resume o conteúdo completo em bullets de forma estável.
+      thinkingConfig: { thinkingBudget: 0 },
       responseMimeType: "application/json",
       responseSchema: {
         type: "OBJECT",
