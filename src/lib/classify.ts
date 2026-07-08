@@ -123,15 +123,9 @@ async function geminiGenerate(body: unknown): Promise<string> {
     { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
   );
   const bodyStr = JSON.stringify(body);
+  console.log("GEMINI_BODY", bodyStr);
   if (!res.ok) throw new Error(`gemini http ${res.status}`);
   const raw = await res.text();
-  console.log(
-    "GEMINI_DBG bodyLen", bodyStr.length,
-    "fewshot", bodyStr.includes("Exemplo"),
-    "thinking", bodyStr.includes("thinkingBudget"),
-    "maxTok", bodyStr.includes("2000"),
-    "resp", raw.replace(/\n/g, "\\n").slice(0, 500),
-  );
   const data = JSON.parse(raw) as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
   };
