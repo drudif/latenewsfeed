@@ -80,10 +80,18 @@ export function buildGeminiRequest(payload: ClassifyPayload, categories: Categor
       responseSchema: {
         type: "OBJECT",
         properties: {
-          category_slug: { type: "STRING", enum: slugs },
-          title: { type: "STRING" },
-          summary: { type: "STRING" },
+          category_slug: { type: "STRING", enum: slugs, description: "A categoria escolhida da lista." },
+          title: { type: "STRING", description: "Título curto e descritivo, máx ~8 palavras." },
+          summary: {
+            type: "STRING",
+            description:
+              "Resumo COMPLETO e detalhado do conteúdo, do começo ao fim: cubra TODOS os pontos, " +
+              "dados, decisões e conclusões relevantes — não é uma sinopse de uma frase. " +
+              "Se houver vários tópicos, itens, decisões ou passos, liste-os em bullets, uma linha " +
+              "por item começando com '- '. Fiel ao conteúdo, em português.",
+          },
         },
+        propertyOrdering: ["category_slug", "title", "summary"],
         required: ["category_slug", "title", "summary"],
       },
     },
