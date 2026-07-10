@@ -56,12 +56,12 @@ export default function Feed({
   return (
     <>
       <div className="filters">
-        <div className="wrap">
+        <div className="wrap narrow">
           <CategoryChips categories={categories} active={category} onChange={changeCategory} />
         </div>
       </div>
       <main>
-        <div className="wrap">
+        <div className="wrap narrow">
           <Composer />
           <div className="section-head" style={{ ["--cc" as string]: "var(--ink)" }}>
             <span className="ix">—</span>
