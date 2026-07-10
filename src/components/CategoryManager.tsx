@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
+import { categoryColor } from "@/lib/categoryColor";
 
 type Cat = { slug: string; name: string };
 
@@ -25,50 +26,52 @@ export default function CategoryManager({ initial }: { initial: Cat[] }) {
     if (res.ok) setCats((c) => c.filter((x) => x.slug !== slug));
   }
   async function save(slug: string) {
-    const name = draft.trim();
-    if (!name) { setEditing(null); return; }
+    const n = draft.trim();
+    if (!n) { setEditing(null); return; }
     const res = await fetch("/api/categories", {
       method: "PATCH", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ slug, name }),
+      body: JSON.stringify({ slug, name: n }),
     });
-    if (res.ok) setCats((c) => c.map((x) => (x.slug === slug ? { ...x, name } : x)));
+    if (res.ok) setCats((c) => c.map((x) => (x.slug === slug ? { ...x, name: n } : x)));
     setEditing(null);
   }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Categorias</h2>
-      <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200 bg-white">
-        {cats.map((c) => (
-          <li key={c.slug} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-            {editing === c.slug ? (
-              <>
-                <input value={draft} onChange={(e) => setDraft(e.target.value)}
-                  className="flex-1 rounded-lg border border-neutral-200 px-2 py-1 text-sm outline-none focus:border-neutral-400" />
-                <div className="flex gap-2">
-                  <button onClick={() => save(c.slug)} className="text-neutral-900 hover:underline">salvar</button>
-                  <button onClick={() => setEditing(null)} className="text-neutral-500 hover:underline">cancelar</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <span>{c.name} <span className="text-neutral-400">({c.slug})</span></span>
-                <div className="flex gap-2">
-                  <button onClick={() => { setEditing(c.slug); setDraft(c.name); }} className="text-neutral-600 hover:underline">editar</button>
+    <main>
+      <div className="wrap settings">
+        <h2>Categorias</h2>
+        <div className="cat-list">
+          {cats.map((c) => (
+            <div key={c.slug} className="cat-row">
+              <span className="swatch" style={{ ["--cc" as keyof CSSProperties]: categoryColor(c.slug) } as CSSProperties} />
+              {editing === c.slug ? (
+                <>
+                  <input className="field" value={draft} autoFocus
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && save(c.slug)} />
+                  <button className="act" onClick={() => save(c.slug)}>salvar</button>
+                  <button className="act" onClick={() => setEditing(null)}>cancelar</button>
+                </>
+              ) : (
+                <>
+                  <span className="cat-name">{c.name}</span>
+                  <span className="cat-slug">{c.slug}</span>
+                  <button className="act" onClick={() => { setEditing(c.slug); setDraft(c.name); }}>editar</button>
                   {c.slug !== "outros" && (
-                    <button onClick={() => remove(c.slug)} className="text-red-600 hover:underline">remover</button>
+                    <button className="act danger" onClick={() => remove(c.slug)}>remover</button>
                   )}
-                </div>
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
-      <div className="flex gap-2">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nova categoria"
-          className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-neutral-400" />
-        <button onClick={add} className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white">Adicionar</button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="add-row">
+          <input className="field" value={name} placeholder="Nova categoria"
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && add()} />
+          <button className="add-btn" onClick={add}>Adicionar</button>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CategoryChips from "./CategoryChips";
+import Composer from "./Composer";
 import InputCard, { type Item } from "./InputCard";
 
 export default function Feed({
@@ -14,6 +15,10 @@ export default function Feed({
   const [category, setCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const sentinel = useRef<HTMLDivElement>(null);
+  const catName = useMemo(
+    () => Object.fromEntries(categories.map((c) => [c.slug, c.name])),
+    [categories],
+  );
 
   const load = useCallback(async (reset: boolean, cat: string | null, cur: string | null) => {
     if (!reset && loading) return;
@@ -45,18 +50,39 @@ export default function Feed({
   }, [cursor, loading, category, load]);
 
   function onRead(id: string) {
-    setTimeout(() => setItems((prev) => prev.filter((i) => i.id !== id)), 150);
+    setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
   return (
-    <div className="space-y-4">
-      <CategoryChips categories={categories} active={category} onChange={changeCategory} />
-      {items.length === 0 && !loading && (
-        <p className="py-12 text-center text-sm text-neutral-400">Nada por aqui. Inbox zero. ✨</p>
-      )}
-      {items.map((item) => <InputCard key={item.id} item={item} onRead={onRead} />)}
-      <div ref={sentinel} className="h-8" />
-      {loading && <p className="text-center text-sm text-neutral-400">carregando…</p>}
-    </div>
+    <>
+      <div className="filters">
+        <div className="wrap">
+          <CategoryChips categories={categories} active={category} onChange={changeCategory} />
+        </div>
+      </div>
+      <main>
+        <div className="wrap">
+          <Composer />
+          <div className="section-head" style={{ ["--cc" as string]: "var(--ink)" }}>
+            <span className="ix">—</span>
+            <h2>Feed</h2>
+            <span className="count">
+              {items.length} {items.length === 1 ? "não lido" : "não lidos"}
+            </span>
+          </div>
+          {items.length === 0 && !loading ? (
+            <p className="empty">Tudo lido.</p>
+          ) : (
+            <div className="grid">
+              {items.map((item) => (
+                <InputCard key={item.id} item={item} onRead={onRead} catLabel={catName[item.categorySlug]} />
+              ))}
+            </div>
+          )}
+          <div ref={sentinel} style={{ height: 8 }} />
+          {loading && <p className="loading">carregando…</p>}
+        </div>
+      </main>
+    </>
   );
 }
