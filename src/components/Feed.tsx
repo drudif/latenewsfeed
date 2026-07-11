@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CategoryChips from "./CategoryChips";
 import Composer from "./Composer";
 import InputCard, { type Item } from "./InputCard";
-import { categorySize } from "@/lib/categoryColor";
 
 export default function Feed({
   initialItems, initialCursor, categories,
@@ -57,12 +56,12 @@ export default function Feed({
   return (
     <>
       <div className="filters">
-        <div className="wrap">
+        <div className="wrap narrow">
           <CategoryChips categories={categories} active={category} onChange={changeCategory} />
         </div>
       </div>
       <main>
-        <div className="wrap">
+        <div className="wrap narrow">
           <Composer />
           <div className="section-head" style={{ ["--cc" as string]: "var(--ink)" }}>
             <span className="ix">—</span>
@@ -74,15 +73,13 @@ export default function Feed({
           {items.length === 0 && !loading ? (
             <p className="empty">Tudo lido.</p>
           ) : (
-            <div className="bento">
+            <div className="feed2">
               {items.map((item) => (
                 <InputCard
                   key={item.id}
                   item={item}
                   onRead={onRead}
                   catLabel={catName[item.categorySlug]}
-                  sizeClass={`sz${categorySize(item.categorySlug)}`}
-                  clamp
                 />
               ))}
             </div>

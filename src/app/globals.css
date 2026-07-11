@@ -68,31 +68,13 @@ main{padding:20px 0 80px}
 .grid{display:flex;flex-direction:column;gap:12px}
 .wrap.narrow{max-width:880px}
 
-/* ---------- BENTO (feed) ---------- */
-/* Tiles de altura fixa (largura varia por categoria) empacotam em linhas
-   perfeitas, sem buracos, preservando a ordem cronológica. Expandir cresce o card. */
-.bento{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;align-items:start}
-.bento .card{height:452px}
-.bento .card:has(.full){height:auto}    /* "Ler na íntegra" cresce o card */
-.bento .card.sz4{grid-column:span 6}    /* pessoal — destaque máximo (metade) */
-.bento .card.sz3{grid-column:span 4}    /* ler / ver depois */
-.bento .card.sz2{grid-column:span 3}    /* inspiração */
-.bento .card.sz1{grid-column:span 2}    /* outros */
-.bento .card .pad{padding:24px 24px 20px;gap:13px}
-.bento .card .card-top,.bento .card .expand,.bento .card .card-foot{flex-shrink:0}
-.bento .card .card-foot{margin-top:0}
-.bento .cbody{flex:1 1 0;min-height:0;overflow:hidden}
-@media(max-width:900px){
-  .bento{grid-template-columns:repeat(6,1fr)}
-  .bento .card.sz4{grid-column:span 4}
-  .bento .card.sz3{grid-column:span 3}
-  .bento .card.sz2{grid-column:span 2}
-  .bento .card.sz1{grid-column:span 2}
-}
-@media(max-width:600px){
-  .bento{grid-template-columns:1fr}
-  .bento .card{grid-column:span 1;height:auto}
-}
+/* ---------- FEED 2 COLUNAS (masonry) ---------- */
+/* Colunas CSS: cada card tem altura natural (o resumo nunca é cortado) e
+   flui pra coluna mais curta, sem buracos e sem JS. */
+.feed2{columns:2;column-gap:14px}
+.feed2 .card{break-inside:avoid;width:100%;margin:0 0 14px}
+.feed2 .card .pad{padding:22px 22px 18px}
+@media(max-width:720px){.feed2{columns:1}}
 
 /* ---------- CARD ---------- */
 .card{background:transparent;border:1.5px solid var(--line);padding:0;display:flex;flex-direction:column;
@@ -103,11 +85,7 @@ main{padding:20px 0 80px}
 .card:hover{background:var(--paper-2);transform:translate(-3px,-3px);box-shadow:6px 6px 0 var(--cc)}
 .card.leaving{opacity:0;transform:translate(-3px,-3px) scale(.98)}
 .card-top{display:flex;flex-direction:column;align-items:flex-start;gap:9px}
-.card h3{font-family:var(--serif);font-weight:400;font-size:28px;line-height:1.04;letter-spacing:-.015em}
-.bento .card.sz4 h3{font-size:clamp(38px,4vw,58px);line-height:.98}
-.bento .card.sz3 h3{font-size:clamp(30px,2.6vw,40px)}
-.bento .card.sz2 h3{font-size:30px}
-.bento .card.sz1 h3{font-size:25px}
+.card h3{font-family:var(--serif);font-weight:400;font-size:29px;line-height:1.04;letter-spacing:-.015em}
 .card-tags{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
 .tag{font-size:8.5px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;color:var(--cc);
   border:1.5px solid var(--cc);padding:3px 8px;white-space:nowrap;flex-shrink:0;line-height:1;border-radius:999px}
@@ -118,8 +96,6 @@ main{padding:20px 0 80px}
 .card .list li{padding-left:16px;position:relative;line-height:1.45}
 .card .list li::before{content:"—";position:absolute;left:0;color:var(--cc)}
 .cbody{display:flex;flex-direction:column;gap:11px}
-.cbody.clamped{overflow:hidden;
-  -webkit-mask-image:linear-gradient(180deg,#000 74%,transparent);mask-image:linear-gradient(180deg,#000 74%,transparent)}
 .thumbs{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}
 .thumbs img{height:112px;border-radius:8px;object-fit:cover;border:1.5px solid var(--hair)}
 .thumb-miss{display:flex;align-items:center;justify-content:center;width:112px;height:112px;border-radius:8px;
