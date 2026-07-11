@@ -19,8 +19,8 @@ function summaryLines(summary: string | null): string[] | null {
 }
 
 export default function InputCard({
-  item, onRead, readOnly, catLabel,
-}: { item: Item; onRead: (id: string) => void; readOnly?: boolean; catLabel?: string }) {
+  item, onRead, readOnly, catLabel, sizeClass, clamp,
+}: { item: Item; onRead: (id: string) => void; readOnly?: boolean; catLabel?: string; sizeClass?: string; clamp?: boolean }) {
   const [leaving, setLeaving] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const cc = categoryColor(item.categorySlug);
@@ -36,7 +36,7 @@ export default function InputCard({
   }
 
   return (
-    <article className={`card${leaving ? " leaving" : ""}`} style={{ ["--cc" as keyof CSSProperties]: cc } as CSSProperties}>
+    <article className={`card${sizeClass ? " " + sizeClass : ""}${leaving ? " leaving" : ""}`} style={{ ["--cc" as keyof CSSProperties]: cc } as CSSProperties}>
       <div className="bar" />
       <div className="pad">
         <div className="card-top">
@@ -47,24 +47,26 @@ export default function InputCard({
           </div>
         </div>
 
-        {bullets ? (
-          <ul className="list">{bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>
-        ) : item.summary ? (
-          <p>{item.summary}</p>
-        ) : null}
+        <div className={`cbody${clamp && !expanded ? " clamped" : ""}`}>
+          {bullets ? (
+            <ul className="list">{bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>
+          ) : item.summary ? (
+            <p>{item.summary}</p>
+          ) : null}
 
-        {item.images.length > 0 && (
-          <div className="thumbs">
-            {item.images.map((img, i) =>
-              img.status === "ok" ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={i} src={`${R2_PUBLIC}/${img.r2Key}`} alt="" />
-              ) : (
-                <div key={i} className="thumb-miss">imagem indisponível</div>
-              ),
-            )}
-          </div>
-        )}
+          {item.images.length > 0 && (
+            <div className="thumbs">
+              {item.images.map((img, i) =>
+                img.status === "ok" ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={i} src={`${R2_PUBLIC}/${img.r2Key}`} alt="" />
+                ) : (
+                  <div key={i} className="thumb-miss">imagem indisponível</div>
+                ),
+              )}
+            </div>
+          )}
+        </div>
 
         {hasFullContent && (
           <>

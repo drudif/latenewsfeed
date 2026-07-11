@@ -25,3 +25,16 @@ export function categoryColor(slug: string): string {
   for (let i = 0; i < slug.length; i++) h = (h * 31 + slug.charCodeAt(i)) >>> 0;
   return PALETTE[h % PALETTE.length];
 }
+
+// Prominência no bento: pessoal > ler-depois > inspiração > outros.
+// 4 = tile maior (mais destaque), 1 = menor. Categorias novas = médio (2).
+const PRIORITY: Record<string, number> = {
+  pessoal: 4,
+  "ler-depois": 3,
+  inspiracao: 2,
+  outros: 1,
+};
+
+export function categorySize(slug: string): number {
+  return PRIORITY[slug] ?? 2;
+}
