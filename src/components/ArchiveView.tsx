@@ -42,7 +42,7 @@ export default function ArchiveView({ categories }: { categories: { slug: string
   return (
     <>
       <div className="filters">
-        <div className="wrap narrow">
+        <div className="wrap">
           <CategoryChips categories={categories} active={category} onChange={setCategory} />
           <label className="search">
             <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
@@ -51,7 +51,7 @@ export default function ArchiveView({ categories }: { categories: { slug: string
         </div>
       </div>
       <main>
-        <div className="wrap narrow">
+        <div className="wrap">
           <div className="section-head" style={{ ["--cc" as string]: "var(--ink)" }}>
             <span className="ix">—</span>
             <h2>Arquivo</h2>
@@ -60,7 +60,7 @@ export default function ArchiveView({ categories }: { categories: { slug: string
           {items.length === 0 && !loading ? (
             <p className="empty">Nada encontrado.</p>
           ) : (
-            <div className="grid">
+            <div className="feed2">
               {items.map((item) => (
                 <InputCard key={item.id} item={item} readOnly onRead={() => {}} catLabel={catName[item.categorySlug]} />
               ))}

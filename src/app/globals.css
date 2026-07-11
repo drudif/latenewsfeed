@@ -21,12 +21,12 @@ body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-weigh
 a{color:inherit;text-decoration:none}
 button{font-family:inherit}
 ::selection{background:var(--ink);color:var(--paper)}
-.wrap{max-width:var(--maxw);margin:0 auto;padding:0 clamp(20px,4vw,44px)}
+.wrap{max-width:none;margin:0;padding:0 30px}
 .mono{font-variant-numeric:tabular-nums;letter-spacing:.02em}
 
 /* ---------- HEADER / NAV ---------- */
 .app-header{border-bottom:1.5px solid var(--line)}
-.app-header .wrap{padding:clamp(30px,5vw,56px) clamp(20px,4vw,44px) 22px;
+.app-header .wrap{padding:clamp(30px,5vw,56px) 30px 22px;
   display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
 .brand{font-family:var(--serif);font-weight:400;font-size:clamp(46px,9vw,96px);line-height:.86;letter-spacing:-.02em}
 .brand .dot{color:var(--cc)}
@@ -37,7 +37,7 @@ button{font-family:inherit}
 
 /* ---------- FILTROS ---------- */
 .filters{position:sticky;top:0;z-index:20;background:var(--paper);border-bottom:1.5px solid var(--line)}
-.filters .wrap{padding:14px clamp(20px,4vw,44px);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.filters .wrap{padding:14px 30px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .chips{display:flex;flex-wrap:wrap;gap:7px}
 .chip{border:1.5px solid var(--line);background:transparent;color:var(--ink);padding:7px 14px;border-radius:999px;
   font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;cursor:pointer;font-family:inherit;
@@ -66,7 +66,6 @@ main{padding:20px 0 80px}
 .section-head .count{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
 
 .grid{display:flex;flex-direction:column;gap:12px}
-.wrap.narrow{max-width:880px}
 
 /* ---------- FEED 2 COLUNAS (masonry) ---------- */
 /* Colunas CSS: cada card tem altura natural (o resumo nunca é cortado) e
