@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AUTH_COOKIE, isAuthed } from "@/lib/auth";
 
-// Everything except /api/poll (own secret), Next internals, and static assets.
+// Everything except /api/poll and /api/summary (own secret), Next internals, and static assets.
 export const config = {
-  matcher: ["/((?!api/poll|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!api/poll|api/summary|_next/static|_next/image|favicon.ico).*)"],
 };
 
 export function proxy(req: NextRequest) {
