@@ -134,10 +134,17 @@ export async function classifyInput(
   categories: CategoryLite[],
   generate: GenerateFn = geminiGenerate,
 ): Promise<Classification> {
-  try {
-    const raw = await generate(buildGeminiRequest(payload, categories));
-    return parseClassification(JSON.parse(raw), categories.map((c) => c.slug));
-  } catch {
-    return fallbackClassification(payload);
+  const slugs = categories.map((c) => c.slug);
+  const req = buildGeminiRequest(payload, categories);
+  // Duas tentativas: falhas transitórias (timeout/rate-limit) deixavam o input
+  // sem resumo. Só cai no fallback se as duas falharem.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const raw = await generate(req);
+      return parseClassification(JSON.parse(raw), slugs);
+    } catch {
+      // tenta de novo
+    }
   }
+  return fallbackClassification(payload);
 }

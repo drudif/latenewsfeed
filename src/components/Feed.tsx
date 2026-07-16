@@ -53,11 +53,25 @@ export default function Feed({
     setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
+  async function recategorize(id: string, slug: string) {
+    // otimista: muda a categoria (cor/tag) na hora
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, categorySlug: slug } : it)));
+    // se um filtro de categoria está ativo e o item saiu dela, tira da vista
+    if (category && slug !== category) {
+      setItems((prev) => prev.filter((it) => it.id !== id));
+    }
+    await fetch(`/api/inputs/${id}/category`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ categorySlug: slug }),
+    });
+  }
+
   return (
     <>
       <div className="filters">
         <div className="wrap">
-          <CategoryChips categories={categories} active={category} onChange={changeCategory} />
+          <CategoryChips categories={categories} active={category} onChange={changeCategory} onDropCard={recategorize} />
         </div>
       </div>
       <main>
@@ -80,6 +94,7 @@ export default function Feed({
                   item={item}
                   onRead={onRead}
                   catLabel={catName[item.categorySlug]}
+                  draggable
                 />
               ))}
             </div>

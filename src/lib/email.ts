@@ -19,7 +19,16 @@ export type NormalizedInput = {
 export async function parseEmail(raw: Buffer): Promise<NormalizedInput> {
   const mail = await simpleParser(raw);
   const images: ImagePart[] = (mail.attachments ?? [])
-    .filter((a) => (a.contentType ?? "").startsWith("image/"))
+    .filter((a) => {
+      if (!(a.contentType ?? "").startsWith("image/")) return false;
+      // Descarta imagens embutidas no corpo (assinaturas, logos do Outlook como
+      // image001.png): multipart/related ou disposição inline. Mantém anexos de
+      // verdade (ex.: um screenshot encaminhado).
+      const att = a as { related?: boolean; contentDisposition?: string };
+      if (att.related) return false;
+      if ((att.contentDisposition ?? "").toLowerCase() === "inline") return false;
+      return true;
+    })
     .map((a) => ({
       buffer: a.content as Buffer,
       contentType: a.contentType,

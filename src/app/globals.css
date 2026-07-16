@@ -85,6 +85,11 @@ main{padding:20px 0 80px}
 .card.leaving{opacity:0;transform:translate(-3px,-3px) scale(.98)}
 .card-top{display:flex;flex-direction:column;align-items:flex-start;gap:9px}
 .card h3{font-family:var(--serif);font-weight:400;font-size:29px;line-height:1.04;letter-spacing:-.015em}
+.card h3 .subj{display:block;font-size:.6em;line-height:1.18;color:var(--ink-2);margin-top:7px;letter-spacing:0}
+/* arrastar card até um chip pra recategorizar */
+.card[draggable="true"]{cursor:grab}
+.card.dragging{opacity:.4;cursor:grabbing}
+.chip.drop-hover{outline:2px dashed var(--cc,var(--ink));outline-offset:3px;background:var(--paper-2)}
 .card-tags{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
 .tag{font-size:8.5px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;color:var(--cc);
   border:1.5px solid var(--cc);padding:3px 8px;white-space:nowrap;flex-shrink:0;line-height:1;border-radius:999px}

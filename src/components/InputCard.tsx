@@ -4,7 +4,7 @@ import { categoryColor } from "@/lib/categoryColor";
 
 export type Item = {
   id: string; source: string; categorySlug: string; title: string;
-  summary: string | null; bodyText: string; sender: string | null;
+  summary: string | null; bodyText: string; sender: string | null; subject: string | null;
   createdAt: string; images: { r2Key: string; status: string }[];
 };
 
@@ -18,16 +18,30 @@ function summaryLines(summary: string | null): string[] | null {
   return null;
 }
 
+// Extrai o nome do remetente de "Fernando Drudi" <f@x.com> / Fernando <f@x> / f@x
+function senderName(sender: string | null): string {
+  if (!sender) return "";
+  const s = sender.trim();
+  const m = s.match(/^\s*"?([^"<]*?)"?\s*<[^>]+>\s*$/);
+  if (m && m[1].trim()) return m[1].trim();
+  return s.replace(/[<>"]/g, "").trim();
+}
+
 export default function InputCard({
-  item, onRead, readOnly, catLabel, sizeClass, clamp,
-}: { item: Item; onRead: (id: string) => void; readOnly?: boolean; catLabel?: string; sizeClass?: string; clamp?: boolean }) {
+  item, onRead, readOnly, catLabel, sizeClass, clamp, draggable,
+}: {
+  item: Item; onRead: (id: string) => void; readOnly?: boolean;
+  catLabel?: string; sizeClass?: string; clamp?: boolean; draggable?: boolean;
+}) {
   const [leaving, setLeaving] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const cc = categoryColor(item.categorySlug);
   const when = new Date(item.createdAt);
   const stamp = `${when.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} · ${when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
   const bullets = summaryLines(item.summary);
   const hasFullContent = (item.bodyText ?? "").trim().length > 0;
+  const isEmail = item.source === "email";
 
   async function markRead() {
     setLeaving(true);
@@ -36,14 +50,31 @@ export default function InputCard({
   }
 
   return (
-    <article className={`card${sizeClass ? " " + sizeClass : ""}${leaving ? " leaving" : ""}`} style={{ ["--cc" as keyof CSSProperties]: cc } as CSSProperties}>
+    <article
+      className={`card${sizeClass ? " " + sizeClass : ""}${leaving ? " leaving" : ""}${dragging ? " dragging" : ""}`}
+      style={{ ["--cc" as keyof CSSProperties]: cc } as CSSProperties}
+      draggable={draggable || undefined}
+      onDragStart={draggable ? (e) => {
+        e.dataTransfer.setData("text/plain", item.id);
+        e.dataTransfer.effectAllowed = "move";
+        setDragging(true);
+      } : undefined}
+      onDragEnd={draggable ? () => setDragging(false) : undefined}
+    >
       <div className="bar" />
       <div className="pad">
         <div className="card-top">
-          <h3>{item.title}</h3>
+          {isEmail ? (
+            <h3>
+              {senderName(item.sender) || "Remetente desconhecido"}
+              {item.subject ? <span className="subj">{item.subject}</span> : null}
+            </h3>
+          ) : (
+            <h3>{item.title}</h3>
+          )}
           <div className="card-tags">
             <span className="tag">{catLabel ?? item.categorySlug}</span>
-            <span className="ttag">{item.source === "email" ? "e-mail" : "colado"}</span>
+            <span className="ttag">{isEmail ? "e-mail" : "colado"}</span>
           </div>
         </div>
 
