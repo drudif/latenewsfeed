@@ -17,7 +17,8 @@ export function proxy(req: NextRequest) {
     url.searchParams.delete("k");
     const res = NextResponse.redirect(url);
     res.cookies.set(AUTH_COOKIE, secret, {
-      httpOnly: true, sameSite: "lax", secure: true, path: "/", maxAge: 60 * 60 * 24 * 365,
+      // SameSite=None p/ a sessão fluir quando o portal roda embedado (iframe do dash).
+      httpOnly: true, sameSite: "none", secure: true, path: "/", maxAge: 60 * 60 * 24 * 365,
     });
     return res;
   }
