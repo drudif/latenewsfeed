@@ -110,6 +110,8 @@ main{padding:20px 0 80px}
 .expand:hover{color:var(--ink)}
 .full{margin-top:2px;max-height:320px;overflow-y:auto;white-space:pre-line;border:1.5px solid var(--hair);
   border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.55;color:var(--ink-2);background:var(--paper-2)}
+.full-frame{margin-top:2px;width:100%;height:280px;border:1.5px solid var(--hair);border-radius:8px;
+  background:#fff;display:block;color-scheme:light}
 .card-foot{margin-top:auto;padding-top:12px;border-top:1.5px solid var(--hair);display:flex;align-items:center;
   justify-content:space-between;gap:10px}
 .date{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:700}

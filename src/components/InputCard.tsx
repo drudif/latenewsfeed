@@ -1,5 +1,5 @@
 "use client";
-import { useState, type CSSProperties } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import { categoryColor } from "@/lib/categoryColor";
 
 export type Item = {
@@ -27,6 +27,19 @@ function senderName(sender: string | null): string {
   return s.replace(/[<>"]/g, "").trim();
 }
 
+// Envolve o HTML do e-mail para render num iframe isolado: links abrem em nova
+// aba (base target), imagens/tabelas contidas na largura.
+function frameDoc(html: string): string {
+  return (
+    `<!doctype html><html><head><meta charset="utf-8"><base target="_blank" rel="noopener">` +
+    `<style>html,body{margin:0;padding:0}` +
+    `body{font-family:'Satoshi',system-ui,-apple-system,sans-serif;color:#4c463d;font-size:13px;` +
+    `line-height:1.55;overflow-wrap:break-word;word-break:break-word}` +
+    `a{color:#0e8ba0}img{max-width:100%;height:auto}table{max-width:100%!important}</style>` +
+    `</head><body>${html}</body></html>`
+  );
+}
+
 export default function InputCard({
   item, onRead, readOnly, catLabel, sizeClass, clamp, draggable,
 }: {
@@ -36,6 +49,9 @@ export default function InputCard({
   const [leaving, setLeaving] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [fullHtml, setFullHtml] = useState<string | null>(null);
+  const [fullLoaded, setFullLoaded] = useState(false);
+  const frameRef = useRef<HTMLIFrameElement>(null);
   const cc = categoryColor(item.categorySlug);
   const when = new Date(item.createdAt);
   const stamp = `${when.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} · ${when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
@@ -47,6 +63,27 @@ export default function InputCard({
     setLeaving(true);
     await fetch(`/api/inputs/${item.id}/read`, { method: "PATCH" });
     setTimeout(() => onRead(item.id), 180);
+  }
+
+  async function toggleExpand() {
+    const next = !expanded;
+    setExpanded(next);
+    if (next && !fullLoaded) {
+      setFullLoaded(true);
+      try {
+        const r = await fetch(`/api/inputs/${item.id}/html`).then((x) => x.json());
+        setFullHtml(typeof r.html === "string" && r.html.trim() ? r.html : null);
+      } catch {
+        /* mantém o texto puro como fallback */
+      }
+    }
+  }
+
+  function sizeFrame() {
+    const f = frameRef.current;
+    if (!f || !f.contentDocument) return;
+    const h = f.contentDocument.documentElement.scrollHeight;
+    f.style.height = Math.min(h + 8, 620) + "px";
   }
 
   return (
@@ -101,10 +138,23 @@ export default function InputCard({
 
         {hasFullContent && (
           <>
-            <button className="expand" onClick={() => setExpanded((v) => !v)}>
+            <button className="expand" onClick={toggleExpand}>
               {expanded ? "Recolher" : "Ler na íntegra"}
             </button>
-            {expanded && <div className="full">{item.bodyText}</div>}
+            {expanded && (
+              fullHtml ? (
+                <iframe
+                  ref={frameRef}
+                  className="full-frame"
+                  title="E-mail completo"
+                  sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                  srcDoc={frameDoc(fullHtml)}
+                  onLoad={sizeFrame}
+                />
+              ) : (
+                <div className="full">{item.bodyText}</div>
+              )
+            )}
           </>
         )}
 
