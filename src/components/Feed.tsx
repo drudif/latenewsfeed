@@ -87,7 +87,7 @@ export default function Feed({
           {items.length === 0 && !loading ? (
             <p className="empty">Tudo lido.</p>
           ) : (
-            <div className="feed2">
+            <div className="portal">
               {items.map((item) => (
                 <InputCard
                   key={item.id}

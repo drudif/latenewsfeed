@@ -12,6 +12,7 @@ export type FeedItem = {
   categorySlug: string;
   title: string;
   summary: string | null;
+  shortSummary: string | null;
   bodyText: string;
   sender: string | null;
   subject: string | null;
@@ -34,7 +35,8 @@ async function attachImages(db: any, items: any[]): Promise<FeedItem[]> {
   }
   return items.map((i) => ({
     id: i.id, source: i.source, categorySlug: i.categorySlug, title: i.title,
-    summary: i.summary, bodyText: i.bodyText, sender: i.sender, subject: i.subject,
+    summary: i.summary, shortSummary: i.shortSummary, bodyText: i.bodyText,
+    sender: i.sender, subject: i.subject,
     createdAt: i.createdAtIso,
     images: byInput.get(i.id) ?? [],
   }));

@@ -73,6 +73,7 @@ export async function ingestInput(deps: IngestDeps, input: NormalizedInput): Pro
     sender: input.sender,
     subject: input.subject,
     summary: result.summary,
+    shortSummary: result.summaryShort ?? null,
     messageId: input.messageId,
   }).returning({ id: inputs.id });
 

@@ -67,13 +67,16 @@ main{padding:20px 0 80px}
 
 .grid{display:flex;flex-direction:column;gap:12px}
 
-/* ---------- FEED 2 COLUNAS (masonry) ---------- */
-/* Colunas CSS: cada card tem altura natural (o resumo nunca é cortado) e
-   flui pra coluna mais curta, sem buracos e sem JS. */
-.feed2{columns:2;column-gap:14px}
-.feed2 .card{break-inside:avoid;width:100%;margin:0 0 14px}
-.feed2 .card .pad{padding:22px 22px 18px}
-@media(max-width:720px){.feed2{columns:1}}
+/* ---------- PORTAL (feed estilo portal de notícias) ---------- */
+/* Colunas responsivas por largura: telas largas mostram mais colunas de cards
+   compactos (manchete + chamada curta). Cada card tem altura natural. */
+.portal{columns:360px;column-gap:16px}
+.portal .card{break-inside:avoid;width:100%;margin:0 0 16px}
+.portal .card .pad{padding:20px 20px 16px;gap:10px}
+.portal .card h3{font-size:25px;line-height:1.05}
+.deck{font-size:14.5px;line-height:1.5;color:var(--ink-2);font-weight:500;letter-spacing:-.003em}
+.more{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+@media(max-width:520px){.portal{columns:1}}
 
 /* ---------- CARD ---------- */
 .card{background:transparent;border:1.5px solid var(--line);padding:0;display:flex;flex-direction:column;

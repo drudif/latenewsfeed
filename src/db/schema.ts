@@ -20,7 +20,8 @@ export const inputs = pgTable(
     html: text("html"),
     sender: text("sender"),
     subject: text("subject"),
-    summary: text("summary"),
+    summary: text("summary"),            // resumo detalhado (bullets)
+    shortSummary: text("short_summary"), // chamada curta de 1 frase (estilo portal)
     messageId: text("message_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     readAt: timestamp("read_at", { withTimezone: true }),

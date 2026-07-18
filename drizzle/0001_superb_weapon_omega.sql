@@ -1,0 +1,1 @@
+ALTER TABLE "inputs" ADD COLUMN "short_summary" text;

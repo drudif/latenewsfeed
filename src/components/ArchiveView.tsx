@@ -60,7 +60,7 @@ export default function ArchiveView({ categories }: { categories: { slug: string
           {items.length === 0 && !loading ? (
             <p className="empty">Nada encontrado.</p>
           ) : (
-            <div className="feed2">
+            <div className="portal">
               {items.map((item) => (
                 <InputCard key={item.id} item={item} readOnly onRead={() => {}} catLabel={catName[item.categorySlug]} />
               ))}

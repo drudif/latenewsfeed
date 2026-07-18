@@ -4,7 +4,8 @@ import { categoryColor } from "@/lib/categoryColor";
 
 export type Item = {
   id: string; source: string; categorySlug: string; title: string;
-  summary: string | null; bodyText: string; sender: string | null; subject: string | null;
+  summary: string | null; shortSummary: string | null; bodyText: string;
+  sender: string | null; subject: string | null;
   createdAt: string; images: { r2Key: string; status: string }[];
 };
 
@@ -18,7 +19,18 @@ function summaryLines(summary: string | null): string[] | null {
   return null;
 }
 
-// Extrai o nome do remetente de "Fernando Drudi" <f@x.com> / Fernando <f@x> / f@x
+// Chamada curta: usa o short da IA; senão, deriva do resumo (primeira frase).
+function clean(s: string): string {
+  return s.replace(/\*\*/g, "").replace(/^[#\-*\s]+/, "").trim();
+}
+function deckFrom(item: Item): string {
+  if (item.shortSummary?.trim()) return clean(item.shortSummary);
+  const s = (item.summary ?? "").trim();
+  if (!s) return "";
+  const first = clean(s.split("\n")[0]);
+  return first.length > 150 ? first.slice(0, 148).trimEnd() + "…" : first;
+}
+
 function senderName(sender: string | null): string {
   if (!sender) return "";
   const s = sender.trim();
@@ -27,8 +39,6 @@ function senderName(sender: string | null): string {
   return s.replace(/[<>"]/g, "").trim();
 }
 
-// Envolve o HTML do e-mail para render num iframe isolado: links abrem em nova
-// aba (base target), imagens/tabelas contidas na largura.
 function frameDoc(html: string): string {
   return (
     `<!doctype html><html><head><meta charset="utf-8"><base target="_blank" rel="noopener">` +
@@ -41,23 +51,28 @@ function frameDoc(html: string): string {
 }
 
 export default function InputCard({
-  item, onRead, readOnly, catLabel, sizeClass, clamp, draggable,
+  item, onRead, readOnly, catLabel, draggable,
 }: {
   item: Item; onRead: (id: string) => void; readOnly?: boolean;
-  catLabel?: string; sizeClass?: string; clamp?: boolean; draggable?: boolean;
+  catLabel?: string; draggable?: boolean;
 }) {
   const [leaving, setLeaving] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [showBig, setShowBig] = useState(false);
+  const [showFull, setShowFull] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [fullHtml, setFullHtml] = useState<string | null>(null);
   const [fullLoaded, setFullLoaded] = useState(false);
   const frameRef = useRef<HTMLIFrameElement>(null);
+
   const cc = categoryColor(item.categorySlug);
   const when = new Date(item.createdAt);
   const stamp = `${when.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} · ${when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
   const bullets = summaryLines(item.summary);
-  const hasFullContent = (item.bodyText ?? "").trim().length > 0;
+  const deck = deckFrom(item);
   const isEmail = item.source === "email";
+  const hasFull = (item.bodyText ?? "").trim().length > 0;
+  // Só oferece "resumo maior" se há um resumo mais rico que a chamada curta.
+  const hasBig = !!(item.summary ?? "").trim() && (item.summary ?? "").trim() !== deck;
 
   async function markRead() {
     setLeaving(true);
@@ -65,30 +80,27 @@ export default function InputCard({
     setTimeout(() => onRead(item.id), 180);
   }
 
-  async function toggleExpand() {
-    const next = !expanded;
-    setExpanded(next);
+  async function toggleFull() {
+    const next = !showFull;
+    setShowFull(next);
     if (next && !fullLoaded) {
       setFullLoaded(true);
       try {
         const r = await fetch(`/api/inputs/${item.id}/html`).then((x) => x.json());
         setFullHtml(typeof r.html === "string" && r.html.trim() ? r.html : null);
-      } catch {
-        /* mantém o texto puro como fallback */
-      }
+      } catch { /* fallback texto puro */ }
     }
   }
 
   function sizeFrame() {
     const f = frameRef.current;
     if (!f || !f.contentDocument) return;
-    const h = f.contentDocument.documentElement.scrollHeight;
-    f.style.height = Math.min(h + 8, 620) + "px";
+    f.style.height = Math.min(f.contentDocument.documentElement.scrollHeight + 8, 620) + "px";
   }
 
   return (
     <article
-      className={`card${sizeClass ? " " + sizeClass : ""}${leaving ? " leaving" : ""}${dragging ? " dragging" : ""}`}
+      className={`card${leaving ? " leaving" : ""}${dragging ? " dragging" : ""}`}
       style={{ ["--cc" as keyof CSSProperties]: cc } as CSSProperties}
       draggable={draggable || undefined}
       onDragStart={draggable ? (e) => {
@@ -115,47 +127,59 @@ export default function InputCard({
           </div>
         </div>
 
-        <div className={`cbody${clamp && !expanded ? " clamped" : ""}`}>
-          {bullets ? (
-            <ul className="list">{bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>
-          ) : item.summary ? (
-            <p>{item.summary}</p>
-          ) : null}
+        {deck && <p className="deck">{deck}</p>}
 
-          {item.images.length > 0 && (
-            <div className="thumbs">
-              {item.images.map((img, i) =>
-                img.status === "ok" ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={i} src={`${R2_PUBLIC}/${img.r2Key}`} alt="" />
-                ) : (
-                  <div key={i} className="thumb-miss">imagem indisponível</div>
-                ),
-              )}
-            </div>
-          )}
-        </div>
-
-        {hasFullContent && (
-          <>
-            <button className="expand" onClick={toggleExpand}>
-              {expanded ? "Recolher" : "Ler na íntegra"}
-            </button>
-            {expanded && (
-              fullHtml ? (
-                <iframe
-                  ref={frameRef}
-                  className="full-frame"
-                  title="E-mail completo"
-                  sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                  srcDoc={frameDoc(fullHtml)}
-                  onLoad={sizeFrame}
-                />
+        {item.images.length > 0 && (
+          <div className="thumbs">
+            {item.images.map((img, i) =>
+              img.status === "ok" ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={i} src={`${R2_PUBLIC}/${img.r2Key}`} alt="" />
               ) : (
-                <div className="full">{item.bodyText}</div>
-              )
+                <div key={i} className="thumb-miss">imagem indisponível</div>
+              ),
             )}
-          </>
+          </div>
+        )}
+
+        {(hasBig || hasFull) && (
+          <div className="more">
+            {hasBig && (
+              <button className="expand" onClick={() => setShowBig((v) => !v)}>
+                {showBig ? "menos" : "resumo maior"}
+              </button>
+            )}
+            {hasFull && (
+              <button className="expand" onClick={toggleFull}>
+                {showFull ? "recolher" : "ler na íntegra"}
+              </button>
+            )}
+          </div>
+        )}
+
+        {showBig && (
+          <div className="cbody">
+            {bullets ? (
+              <ul className="list">{bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>
+            ) : item.summary ? (
+              <p>{item.summary}</p>
+            ) : null}
+          </div>
+        )}
+
+        {showFull && (
+          fullHtml ? (
+            <iframe
+              ref={frameRef}
+              className="full-frame"
+              title="E-mail completo"
+              sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+              srcDoc={frameDoc(fullHtml)}
+              onLoad={sizeFrame}
+            />
+          ) : (
+            <div className="full">{item.bodyText}</div>
+          )
         )}
 
         <div className="card-foot">

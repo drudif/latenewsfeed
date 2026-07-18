@@ -32,7 +32,7 @@ describe("parseClassification", () => {
       { category_slug: "inspiracao", title: "Um site legal", summary_points: ["Ref de UI", "Paleta de cores"] },
       CATS.map((c) => c.slug),
     );
-    expect(out).toEqual({ categorySlug: "inspiracao", title: "Um site legal", summary: "- Ref de UI\n- Paleta de cores" });
+    expect(out).toEqual({ categorySlug: "inspiracao", title: "Um site legal", summary: "- Ref de UI\n- Paleta de cores", summaryShort: null });
   });
   it("throws on an unknown category", () => {
     expect(() =>
@@ -49,7 +49,7 @@ describe("parseClassification", () => {
 describe("fallbackClassification", () => {
   it("uses subject as title when present", () => {
     const out = fallbackClassification({ subject: "Assunto X", text: "corpo" });
-    expect(out).toEqual({ categorySlug: "outros", title: "Assunto X", summary: null });
+    expect(out).toEqual({ categorySlug: "outros", title: "Assunto X", summary: null, summaryShort: null });
   });
   it("falls back to first line of text", () => {
     const out = fallbackClassification({ text: "primeira linha\nsegunda" });
@@ -72,7 +72,7 @@ describe("classifyInput", () => {
   it("falls back when the model throws", async () => {
     const generate = async () => { throw new Error("boom"); };
     const out = await classifyInput({ subject: "Assunto Y", text: "t" }, CATS, generate);
-    expect(out).toEqual({ categorySlug: "outros", title: "Assunto Y", summary: null });
+    expect(out).toEqual({ categorySlug: "outros", title: "Assunto Y", summary: null, summaryShort: null });
   });
   it("falls back when the model returns invalid JSON", async () => {
     const generate = async () => "not json at all";

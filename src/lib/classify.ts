@@ -13,7 +13,8 @@ export type ClassifyPayload = {
 export type Classification = {
   categorySlug: string;
   title: string;
-  summary: string | null;
+  summary: string | null;        // resumo detalhado (bullets)
+  summaryShort?: string | null;  // chamada curta de 1 frase (estilo portal)
 };
 
 export type CategoryLite = { slug: string; name: string };
@@ -25,6 +26,8 @@ export type GenerateFn = (body: unknown) => Promise<string>;
 const resultSchema = z.object({
   category_slug: z.string().min(1),
   title: z.string().min(1).max(200),
+  // Chamada curta de 1 frase (manchete/deck estilo portal de notícias).
+  summary_short: z.string().max(300).optional().nullable(),
   // Array em vez de string: força o modelo a enumerar um ponto por item, de
   // forma estável (uma string livre colapsava listas em uma frase só).
   summary_points: z.array(z.string()).max(60).optional().nullable(),
@@ -48,6 +51,7 @@ export function parseClassification(raw: unknown, validSlugs: string[]): Classif
     categorySlug: parsed.category_slug,
     title: parsed.title,
     summary: pointsToSummary(parsed.summary_points),
+    summaryShort: parsed.summary_short?.trim() || null,
   };
 }
 
@@ -55,7 +59,7 @@ export function fallbackClassification(payload: ClassifyPayload): Classification
   const fromSubject = payload.subject?.trim();
   const fromText = payload.text?.trim().split("\n")[0]?.trim();
   const title = fromSubject || fromText || "Screenshot / sem título";
-  return { categorySlug: OUTROS_SLUG, title: title.slice(0, 200), summary: null };
+  return { categorySlug: OUTROS_SLUG, title: title.slice(0, 200), summary: null, summaryShort: null };
 }
 
 export function buildGeminiRequest(payload: ClassifyPayload, categories: CategoryLite[]) {
@@ -73,8 +77,11 @@ export function buildGeminiRequest(payload: ClassifyPayload, categories: Categor
   ].filter(Boolean).join("\n\n");
   parts.push({
     text:
-      `Você organiza a caixa de entrada pessoal de alguém. Para o item abaixo, em português, ` +
-      `gere: a categoria, um título curto (máx ~8 palavras) e o resumo em pontos (summary_points).\n\n` +
+      `Você organiza a caixa de entrada pessoal de alguém. Para o item abaixo, em português, gere: ` +
+      `a categoria, um título curto (máx ~8 palavras), uma chamada curta (summary_short) e o resumo ` +
+      `em pontos (summary_points).\n\n` +
+      `A chamada (summary_short) é UMA frase curta, estilo manchete/deck de portal de notícias, que ` +
+      `diz a essência do conteúdo de forma direta (máx ~20 palavras).\n\n` +
       `O resumo (summary_points) deve conter UM item de array para CADA tópico, tarefa, decisão, ` +
       `item ou passo presente no conteúdo, cobrindo tudo do começo ao fim, sem omitir nada e sem ` +
       `juntar itens diferentes num mesmo ponto. Se o conteúdo for um único assunto simples, use um ` +
@@ -96,6 +103,10 @@ export function buildGeminiRequest(payload: ClassifyPayload, categories: Categor
         properties: {
           category_slug: { type: "STRING", enum: slugs, description: "A categoria escolhida da lista." },
           title: { type: "STRING", description: "Título curto e descritivo, máx ~8 palavras." },
+          summary_short: {
+            type: "STRING",
+            description: "UMA frase curta (máx ~20 palavras), estilo manchete/deck de portal, com a essência do conteúdo.",
+          },
           summary_points: {
             type: "ARRAY",
             items: { type: "STRING" },
@@ -104,8 +115,8 @@ export function buildGeminiRequest(payload: ClassifyPayload, categories: Categor
               "do começo ao fim. Um único item se o conteúdo for um assunto simples.",
           },
         },
-        propertyOrdering: ["category_slug", "title", "summary_points"],
-        required: ["category_slug", "title", "summary_points"],
+        propertyOrdering: ["category_slug", "title", "summary_short", "summary_points"],
+        required: ["category_slug", "title", "summary_short", "summary_points"],
       },
     },
   };
