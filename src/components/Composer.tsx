@@ -1,11 +1,16 @@
 "use client";
 import { useState } from "react";
 
+// Detecta se o conteúdo é só uma URL (sem espaços): http(s)://… ou domínio.tld[/...]
+function looksLikeUrl(t: string): boolean {
+  if (!t || /\s/.test(t)) return false;
+  return /^https?:\/\/\S+$/i.test(t) || /^(www\.)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(t);
+}
+
 export default function Composer({ onAdded }: { onAdded?: () => void }) {
   const [text, setText] = useState("");
-  const [url, setUrl] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const [busy, setBusy] = useState<null | "paste" | "link">(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function onPaste(e: React.ClipboardEvent) {
@@ -14,29 +19,30 @@ export default function Composer({ onAdded }: { onAdded?: () => void }) {
   }
 
   async function submit() {
-    if (!text.trim() && files.length === 0) return;
-    setBusy("paste"); setError(null);
-    const form = new FormData();
-    form.set("text", text);
-    files.forEach((f) => form.append("images", f));
-    const res = await fetch("/api/paste", { method: "POST", body: form });
-    setBusy(null);
-    if (!res.ok) { setError((await res.json().catch(() => ({}))).error ?? "não deu pra salvar"); return; }
-    setText(""); setFiles([]);
-    onAdded?.();
-  }
-
-  async function submitUrl() {
-    if (!url.trim()) return;
-    setBusy("link"); setError(null);
-    const res = await fetch("/api/link", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ url }),
-    });
-    setBusy(null);
-    if (!res.ok) { setError((await res.json().catch(() => ({}))).error ?? "não consegui ler essa URL"); return; }
-    setUrl("");
-    onAdded?.();
+    const t = text.trim();
+    if (!t && files.length === 0) return;
+    setBusy(true); setError(null);
+    try {
+      if (files.length === 0 && looksLikeUrl(t)) {
+        // É só um link → busca a página e analisa.
+        const res = await fetch("/api/link", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ url: t }),
+        });
+        if (!res.ok) { setError((await res.json().catch(() => ({}))).error ?? "não consegui ler essa URL"); return; }
+      } else {
+        // Texto e/ou imagens.
+        const form = new FormData();
+        form.set("text", text);
+        files.forEach((f) => form.append("images", f));
+        const res = await fetch("/api/paste", { method: "POST", body: form });
+        if (!res.ok) { setError((await res.json().catch(() => ({}))).error ?? "não deu pra salvar"); return; }
+      }
+      setText(""); setFiles([]);
+      onAdded?.();
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -45,7 +51,7 @@ export default function Composer({ onAdded }: { onAdded?: () => void }) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         onPaste={onPaste}
-        placeholder="Cole um screenshot ou escreva um input…"
+        placeholder="Cole um screenshot, um link, ou escreva um input…"
       />
       {files.length > 0 && (
         <div className="thumbs">
@@ -57,20 +63,8 @@ export default function Composer({ onAdded }: { onAdded?: () => void }) {
       )}
       <div className="composer-foot">
         <span className="err">{error}</span>
-        <button className="add-btn" onClick={submit} disabled={busy !== null}>
-          {busy === "paste" ? "salvando…" : "Adicionar"}
-        </button>
-      </div>
-      <div className="link-row">
-        <input
-          className="link-input"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") submitUrl(); }}
-          placeholder="…ou cole um link pra analisar"
-        />
-        <button className="add-btn ghost" onClick={submitUrl} disabled={busy !== null}>
-          {busy === "link" ? "lendo…" : "Analisar URL"}
+        <button className="add-btn" onClick={submit} disabled={busy}>
+          {busy ? "processando…" : "Adicionar"}
         </button>
       </div>
     </div>
