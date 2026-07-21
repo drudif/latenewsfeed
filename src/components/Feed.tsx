@@ -76,7 +76,7 @@ export default function Feed({
       </div>
       <main>
         <div className="wrap">
-          <Composer />
+          <Composer onAdded={() => load(true, category, null)} />
           <div className="section-head" style={{ ["--cc" as string]: "var(--ink)" }}>
             <span className="ix">—</span>
             <h2>Feed</h2>

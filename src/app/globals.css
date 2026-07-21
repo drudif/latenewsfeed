@@ -145,6 +145,28 @@ main{padding:20px 0 80px}
 .add-btn:hover{opacity:.85}
 .add-btn:disabled{opacity:.5;cursor:default}
 .add-btn.ghost{background:transparent;color:var(--ink)}
+.link-row{display:flex;gap:10px;align-items:center;border-top:1.5px solid var(--hair);padding-top:13px}
+.link-input{flex:1;min-width:0;border:1.5px solid var(--hair);border-radius:999px;padding:9px 16px;background:transparent;
+  font-family:var(--sans);font-weight:500;font-size:13.5px;color:var(--ink);outline:none}
+.link-input:focus{border-color:var(--ink)}
+.link-input::placeholder{color:var(--ink-3)}
+
+/* ---------- LIGHTBOX (resumo maior / ler na íntegra) ---------- */
+.lightbox{position:fixed;inset:0;z-index:100;background:rgba(25,21,18,.55);-webkit-backdrop-filter:blur(2px);
+  backdrop-filter:blur(2px);display:flex;align-items:flex-start;justify-content:center;padding:6vh 24px;overflow-y:auto}
+.lightbox-panel{background:var(--paper);border:1.5px solid var(--line);border-radius:var(--r);width:100%;max-width:800px;
+  max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px -20px rgba(0,0,0,.5)}
+.lightbox-head{display:flex;align-items:flex-start;gap:16px;padding:22px 26px 16px;border-bottom:1.5px solid var(--line);
+  border-top:5px solid var(--cc)}
+.lightbox-head h3{font-family:var(--serif);font-weight:400;font-size:27px;line-height:1.05;letter-spacing:-.01em;flex:1}
+.lightbox-head .subj{display:block;font-size:.58em;color:var(--ink-2);margin-top:7px;line-height:1.2;letter-spacing:0}
+.lightbox-close{border:none;background:none;color:var(--ink-3);font-size:28px;line-height:1;cursor:pointer;padding:0 2px;flex-shrink:0}
+.lightbox-close:hover{color:var(--ink)}
+.lightbox-body{padding:20px 26px 28px;overflow-y:auto}
+.lightbox-body .list{font-size:15px;gap:10px}
+.lightbox-body .list li{padding-left:18px;line-height:1.5}
+.lb-text{white-space:pre-line;font-size:14px;line-height:1.62;color:var(--ink-2)}
+.lightbox-frame{width:100%;min-height:38vh;border:none;background:#fff;display:block}
 
 /* ---------- AJUSTES ---------- */
 .settings h2{font-family:var(--serif);font-weight:400;font-size:clamp(26px,3.4vw,40px);letter-spacing:-.01em;

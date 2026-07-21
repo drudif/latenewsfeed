@@ -66,6 +66,7 @@ export async function ingestInput(deps: IngestDeps, input: NormalizedInput): Pro
   // Insert input + attachments.
   const [row] = await db.insert(inputs).values({
     source: input.source,
+    url: input.url ?? null,
     categorySlug: result.categorySlug,
     title: result.title,
     bodyText: input.text,

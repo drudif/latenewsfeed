@@ -1,12 +1,11 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
-export default function Composer() {
-  const router = useRouter();
+export default function Composer({ onAdded }: { onAdded?: () => void }) {
   const [text, setText] = useState("");
+  const [url, setUrl] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<null | "paste" | "link">(null);
   const [error, setError] = useState<string | null>(null);
 
   function onPaste(e: React.ClipboardEvent) {
@@ -16,15 +15,28 @@ export default function Composer() {
 
   async function submit() {
     if (!text.trim() && files.length === 0) return;
-    setBusy(true); setError(null);
+    setBusy("paste"); setError(null);
     const form = new FormData();
     form.set("text", text);
     files.forEach((f) => form.append("images", f));
     const res = await fetch("/api/paste", { method: "POST", body: form });
-    setBusy(false);
-    if (!res.ok) { setError((await res.json()).error ?? "não deu pra salvar"); return; }
+    setBusy(null);
+    if (!res.ok) { setError((await res.json().catch(() => ({}))).error ?? "não deu pra salvar"); return; }
     setText(""); setFiles([]);
-    router.refresh();
+    onAdded?.();
+  }
+
+  async function submitUrl() {
+    if (!url.trim()) return;
+    setBusy("link"); setError(null);
+    const res = await fetch("/api/link", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    setBusy(null);
+    if (!res.ok) { setError((await res.json().catch(() => ({}))).error ?? "não consegui ler essa URL"); return; }
+    setUrl("");
+    onAdded?.();
   }
 
   return (
@@ -45,8 +57,20 @@ export default function Composer() {
       )}
       <div className="composer-foot">
         <span className="err">{error}</span>
-        <button className="add-btn" onClick={submit} disabled={busy}>
-          {busy ? "salvando…" : "Adicionar"}
+        <button className="add-btn" onClick={submit} disabled={busy !== null}>
+          {busy === "paste" ? "salvando…" : "Adicionar"}
+        </button>
+      </div>
+      <div className="link-row">
+        <input
+          className="link-input"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") submitUrl(); }}
+          placeholder="…ou cole um link pra analisar"
+        />
+        <button className="add-btn ghost" onClick={submitUrl} disabled={busy !== null}>
+          {busy === "link" ? "lendo…" : "Analisar URL"}
         </button>
       </div>
     </div>

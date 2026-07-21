@@ -1,9 +1,9 @@
 "use client";
-import { useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { categoryColor } from "@/lib/categoryColor";
 
 export type Item = {
-  id: string; source: string; categorySlug: string; title: string;
+  id: string; source: string; url: string | null; categorySlug: string; title: string;
   summary: string | null; shortSummary: string | null; bodyText: string;
   sender: string | null; subject: string | null;
   createdAt: string; images: { r2Key: string; status: string }[];
@@ -19,7 +19,6 @@ function summaryLines(summary: string | null): string[] | null {
   return null;
 }
 
-// Chamada curta: usa o short da IA; senão, deriva do resumo (primeira frase).
 function clean(s: string): string {
   return s.replace(/\*\*/g, "").replace(/^[#\-*\s]+/, "").trim();
 }
@@ -39,12 +38,17 @@ function senderName(sender: string | null): string {
   return s.replace(/[<>"]/g, "").trim();
 }
 
+function domainOf(url: string | null): string {
+  if (!url) return "link";
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return "link"; }
+}
+
 function frameDoc(html: string): string {
   return (
     `<!doctype html><html><head><meta charset="utf-8"><base target="_blank" rel="noopener">` +
     `<style>html,body{margin:0;padding:0}` +
-    `body{font-family:'Satoshi',system-ui,-apple-system,sans-serif;color:#4c463d;font-size:13px;` +
-    `line-height:1.55;overflow-wrap:break-word;word-break:break-word}` +
+    `body{font-family:'Satoshi',system-ui,-apple-system,sans-serif;color:#4c463d;font-size:14px;` +
+    `line-height:1.6;overflow-wrap:break-word;word-break:break-word;padding:4px}` +
     `a{color:#0e8ba0}img{max-width:100%;height:auto}table{max-width:100%!important}</style>` +
     `</head><body>${html}</body></html>`
   );
@@ -57,8 +61,7 @@ export default function InputCard({
   catLabel?: string; draggable?: boolean;
 }) {
   const [leaving, setLeaving] = useState(false);
-  const [showBig, setShowBig] = useState(false);
-  const [showFull, setShowFull] = useState(false);
+  const [modal, setModal] = useState<null | "big" | "full">(null);
   const [dragging, setDragging] = useState(false);
   const [fullHtml, setFullHtml] = useState<string | null>(null);
   const [fullLoaded, setFullLoaded] = useState(false);
@@ -70,9 +73,13 @@ export default function InputCard({
   const bullets = summaryLines(item.summary);
   const deck = deckFrom(item);
   const isEmail = item.source === "email";
+  const isLink = item.source === "link";
   const hasFull = (item.bodyText ?? "").trim().length > 0;
-  // Só oferece "resumo maior" se há um resumo mais rico que a chamada curta.
   const hasBig = !!(item.summary ?? "").trim() && (item.summary ?? "").trim() !== deck;
+  const sourceLabel = isLink ? domainOf(item.url) : isEmail ? "e-mail" : "colado";
+  const headline = isEmail
+    ? (senderName(item.sender) || "Remetente desconhecido")
+    : item.title;
 
   async function markRead() {
     setLeaving(true);
@@ -80,10 +87,9 @@ export default function InputCard({
     setTimeout(() => onRead(item.id), 180);
   }
 
-  async function toggleFull() {
-    const next = !showFull;
-    setShowFull(next);
-    if (next && !fullLoaded) {
+  async function openFull() {
+    setModal("full");
+    if (!fullLoaded) {
       setFullLoaded(true);
       try {
         const r = await fetch(`/api/inputs/${item.id}/html`).then((x) => x.json());
@@ -92,10 +98,20 @@ export default function InputCard({
     }
   }
 
+  // Esc fecha o lightbox; trava o scroll do fundo enquanto aberto.
+  useEffect(() => {
+    if (!modal) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setModal(null); };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [modal]);
+
   function sizeFrame() {
     const f = frameRef.current;
     if (!f || !f.contentDocument) return;
-    f.style.height = Math.min(f.contentDocument.documentElement.scrollHeight + 8, 620) + "px";
+    f.style.height = f.contentDocument.documentElement.scrollHeight + 12 + "px";
   }
 
   return (
@@ -113,17 +129,13 @@ export default function InputCard({
       <div className="bar" />
       <div className="pad">
         <div className="card-top">
-          {isEmail ? (
-            <h3>
-              {senderName(item.sender) || "Remetente desconhecido"}
-              {item.subject ? <span className="subj">{item.subject}</span> : null}
-            </h3>
-          ) : (
-            <h3>{item.title}</h3>
-          )}
+          <h3>
+            {headline}
+            {isEmail && item.subject ? <span className="subj">{item.subject}</span> : null}
+          </h3>
           <div className="card-tags">
             <span className="tag">{catLabel ?? item.categorySlug}</span>
-            <span className="ttag">{isEmail ? "e-mail" : "colado"}</span>
+            <span className="ttag">{sourceLabel}</span>
           </div>
         </div>
 
@@ -142,44 +154,17 @@ export default function InputCard({
           </div>
         )}
 
-        {(hasBig || hasFull) && (
+        {(hasBig || hasFull || isLink) && (
           <div className="more">
             {hasBig && (
-              <button className="expand" onClick={() => setShowBig((v) => !v)}>
-                {showBig ? "menos" : "resumo maior"}
-              </button>
+              <button className="expand" onClick={() => setModal("big")}>resumo maior</button>
             )}
-            {hasFull && (
-              <button className="expand" onClick={toggleFull}>
-                {showFull ? "recolher" : "ler na íntegra"}
-              </button>
-            )}
-          </div>
-        )}
-
-        {showBig && (
-          <div className="cbody">
-            {bullets ? (
-              <ul className="list">{bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>
-            ) : item.summary ? (
-              <p>{item.summary}</p>
+            {isLink && item.url ? (
+              <a className="expand" href={item.url} target="_blank" rel="noopener noreferrer">abrir link ↗</a>
+            ) : hasFull ? (
+              <button className="expand" onClick={openFull}>ler na íntegra</button>
             ) : null}
           </div>
-        )}
-
-        {showFull && (
-          fullHtml ? (
-            <iframe
-              ref={frameRef}
-              className="full-frame"
-              title="E-mail completo"
-              sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-              srcDoc={frameDoc(fullHtml)}
-              onLoad={sizeFrame}
-            />
-          ) : (
-            <div className="full">{item.bodyText}</div>
-          )
         )}
 
         <div className="card-foot">
@@ -191,6 +176,43 @@ export default function InputCard({
           )}
         </div>
       </div>
+
+      {modal && (
+        <div className="lightbox" onClick={() => setModal(null)}>
+          <div
+            className="lightbox-panel"
+            style={{ ["--cc" as keyof CSSProperties]: cc } as CSSProperties}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="lightbox-head">
+              <h3>{headline}{isEmail && item.subject ? <span className="subj">{item.subject}</span> : null}</h3>
+              <button className="lightbox-close" onClick={() => setModal(null)} aria-label="Fechar">×</button>
+            </div>
+            <div className="lightbox-body">
+              {modal === "big" ? (
+                bullets ? (
+                  <ul className="list">{bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>
+                ) : (
+                  <p className="lb-text">{item.summary}</p>
+                )
+              ) : fullHtml ? (
+                <iframe
+                  ref={frameRef}
+                  className="lightbox-frame"
+                  title="E-mail completo"
+                  sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                  srcDoc={frameDoc(fullHtml)}
+                  onLoad={sizeFrame}
+                />
+              ) : fullLoaded ? (
+                <p className="lb-text">{item.bodyText}</p>
+              ) : (
+                <p className="loading">carregando…</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </article>
   );
 }

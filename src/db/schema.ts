@@ -13,7 +13,8 @@ export const inputs = pgTable(
   "inputs",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    source: text("source").notNull(), // 'email' | 'paste'
+    source: text("source").notNull(), // 'email' | 'paste' | 'link'
+    url: text("url"),                 // origem, quando o input é um link
     categorySlug: text("category_slug").notNull().references(() => categories.slug),
     title: text("title").notNull(),
     bodyText: text("body_text").notNull().default(""),

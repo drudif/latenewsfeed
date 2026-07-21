@@ -15,6 +15,13 @@
       "when": 1784348020416,
       "tag": "0001_superb_weapon_omega",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784671125007,
+      "tag": "0002_massive_warpath",
+      "breakpoints": true
     }
   ]
 }

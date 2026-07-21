@@ -7,12 +7,13 @@ export type ImagePart = {
 };
 
 export type NormalizedInput = {
-  source: "email" | "paste";
+  source: "email" | "paste" | "link";
   sender: string | null;
   subject: string | null;
   text: string;
   html: string | null;
   messageId: string | null;
+  url?: string | null;
   images: ImagePart[];
 };
 

@@ -9,6 +9,7 @@ const createdAtIso = sql<string>`to_char(${inputs.createdAt} AT TIME ZONE 'UTC',
 export type FeedItem = {
   id: string;
   source: string;
+  url: string | null;
   categorySlug: string;
   title: string;
   summary: string | null;
@@ -34,7 +35,7 @@ async function attachImages(db: any, items: any[]): Promise<FeedItem[]> {
     byInput.set(a.inputId, list);
   }
   return items.map((i) => ({
-    id: i.id, source: i.source, categorySlug: i.categorySlug, title: i.title,
+    id: i.id, source: i.source, url: i.url, categorySlug: i.categorySlug, title: i.title,
     summary: i.summary, shortSummary: i.shortSummary, bodyText: i.bodyText,
     sender: i.sender, subject: i.subject,
     createdAt: i.createdAtIso,
