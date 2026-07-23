@@ -159,11 +159,12 @@ export default function InputCard({
             {hasBig && (
               <button className="expand" onClick={() => setModal("big")}>resumo maior</button>
             )}
-            {isLink && item.url ? (
+            {isLink && item.url && (
               <a className="expand" href={item.url} target="_blank" rel="noopener noreferrer">abrir link ↗</a>
-            ) : hasFull ? (
+            )}
+            {hasFull && (
               <button className="expand" onClick={openFull}>ler na íntegra</button>
-            ) : null}
+            )}
           </div>
         )}
 
