@@ -29,7 +29,7 @@ export async function ingestInput(deps: IngestDeps, input: NormalizedInput): Pro
   const { db, store, classifier } = deps;
 
   const hasText = input.text.trim().length > 0;
-  if (!hasText && input.images.length === 0) {
+  if (!hasText && input.images.length === 0 && !input.videoUrl) {
     throw new EmptyInputError();
   }
 
@@ -60,6 +60,7 @@ export async function ingestInput(deps: IngestDeps, input: NormalizedInput): Pro
   const payload: ClassifyPayload = {
     subject: input.subject, text: input.text, sender: input.sender,
     image: useVision ? { base64: firstImg.buffer.toString("base64"), mediaType: firstImg.contentType } : null,
+    videoUrl: input.videoUrl ?? null,
   };
   const result = await classifier(payload, cats);
 

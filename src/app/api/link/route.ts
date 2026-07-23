@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { ingestInput } from "@/lib/ingest";
 import { classifyInput } from "@/lib/classify";
 import { R2Store } from "@/lib/r2";
-import { fetchLink, normalizeUrl } from "@/lib/link";
+import { fetchLink, isVideoUrl, normalizeUrl, videoInput } from "@/lib/link";
 
 export const runtime = "nodejs";
 
@@ -14,7 +14,8 @@ export async function POST(req: NextRequest) {
   const norm = normalizeUrl(String(url ?? ""));
   if (!norm) return NextResponse.json({ error: "URL inválida" }, { status: 400 });
   try {
-    const normalized = await fetchLink(norm);
+    // Vídeo (YouTube): o Gemini assiste direto. Outros links: raspa o conteúdo.
+    const normalized = isVideoUrl(norm) ? videoInput(norm) : await fetchLink(norm);
     const id = await ingestInput(
       { db, store: new R2Store(), classifier: (p, c) => classifyInput(p, c) },
       normalized,

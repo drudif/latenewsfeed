@@ -14,6 +14,27 @@ export function normalizeUrl(raw: string): string | null {
   }
 }
 
+// Detecta URL de vídeo do YouTube (que o Gemini consegue assistir direto).
+export function isVideoUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const h = u.hostname.replace(/^(www|m|music)\./, "");
+    if (h === "youtu.be") return u.pathname.length > 1;
+    if (h === "youtube.com") return /^\/(watch|shorts\/|live\/|embed\/)/.test(u.pathname);
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+// Input de vídeo: sem raspagem — o Gemini assiste ao vídeo pela URL.
+export function videoInput(url: string): NormalizedInput {
+  return {
+    source: "link", sender: null, subject: null, text: "", html: null,
+    messageId: null, url, videoUrl: url, images: [],
+  };
+}
+
 function decodeEntities(s: string): string {
   return s
     .replace(/&nbsp;/gi, " ")

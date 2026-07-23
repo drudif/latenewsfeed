@@ -8,6 +8,7 @@ export type ClassifyPayload = {
   text?: string | null;
   sender?: string | null;
   image?: { base64: string; mediaType: string } | null;
+  videoUrl?: string | null; // URL de vídeo (YouTube) — o Gemini assiste direto
 };
 
 export type Classification = {
@@ -70,11 +71,16 @@ export function buildGeminiRequest(payload: ClassifyPayload, categories: Categor
   if (payload.image) {
     parts.push({ inline_data: { mime_type: payload.image.mediaType, data: payload.image.base64 } });
   }
+  if (payload.videoUrl) {
+    parts.push({ file_data: { file_uri: payload.videoUrl } });
+  }
   const textParts = [
     payload.sender ? `Remetente: ${payload.sender}` : "",
     payload.subject ? `Assunto: ${payload.subject}` : "",
     payload.text ? `Conteúdo:\n${payload.text}` : "",
   ].filter(Boolean).join("\n\n");
+  const contentNote = textParts
+    || (payload.videoUrl ? "(assista ao vídeo acima e resuma o conteúdo dele)" : "(sem texto — descreva/resuma a imagem)");
   parts.push({
     text:
       `Você organiza a caixa de entrada pessoal de alguém. Para o item abaixo, em português, gere: ` +
@@ -86,7 +92,7 @@ export function buildGeminiRequest(payload: ClassifyPayload, categories: Categor
       `item ou passo presente no conteúdo, cobrindo tudo do começo ao fim, sem omitir nada e sem ` +
       `juntar itens diferentes num mesmo ponto. Se o conteúdo for um único assunto simples, use um ` +
       `único item descrevendo-o. Seja fiel ao conteúdo.\n\n` +
-      `Categorias:\n${list}\n\n${textParts || "(sem texto — descreva/resuma a imagem)"}`,
+      `Categorias:\n${list}\n\n${contentNote}`,
   });
 
   return {

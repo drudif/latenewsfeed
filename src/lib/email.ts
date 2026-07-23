@@ -14,6 +14,7 @@ export type NormalizedInput = {
   html: string | null;
   messageId: string | null;
   url?: string | null;
+  videoUrl?: string | null;
   images: ImagePart[];
 };
 
