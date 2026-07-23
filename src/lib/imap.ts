@@ -1,6 +1,8 @@
 import { ImapFlow } from "imapflow";
 
-export type RawMessage = { uid: number; raw: Buffer };
+// trackUid=false (ex.: Spam) → a mensagem é processada mas NÃO avança o lastUid
+// do INBOX; é re-escaneada a cada ciclo e o dedup por Message-ID evita repetir.
+export type RawMessage = { uid: number; raw: Buffer; trackUid?: boolean };
 export type FetchResult = { messages: RawMessage[]; maxUid: number };
 
 export interface MailReader {
@@ -61,25 +63,56 @@ export class GmailImapReader implements MailReader {
     await client.connect();
     const messages: RawMessage[] = [];
     let maxUid = lastUid;
-    const lock = await client.getMailboxLock("INBOX");
     try {
-      // UID range from lastUid+1 up, filtered by destination address.
-      const range = `${lastUid + 1}:*`;
-      for await (const msg of client.fetch(
-        { uid: range },
-        { uid: true, source: true, envelope: true },
-        { uid: true },
-      )) {
-        if (!acceptsEnvelope(msg.envelope, this.target, this.allowedSenders)) continue;
-        if (msg.uid <= lastUid) continue; // `n:*` always returns at least the last msg
-        messages.push({ uid: msg.uid, raw: msg.source as Buffer });
-        if (msg.uid > maxUid) maxUid = msg.uid;
+      // INBOX — rastreado por UID (lastUid+1:*), filtrado por destino/remetente.
+      const lock = await client.getMailboxLock("INBOX");
+      try {
+        for await (const msg of client.fetch(
+          { uid: `${lastUid + 1}:*` },
+          { uid: true, source: true, envelope: true },
+          { uid: true },
+        )) {
+          if (!acceptsEnvelope(msg.envelope, this.target, this.allowedSenders)) continue;
+          if (msg.uid <= lastUid) continue; // `n:*` always returns at least the last msg
+          messages.push({ uid: msg.uid, raw: msg.source as Buffer, trackUid: true });
+          if (msg.uid > maxUid) maxUid = msg.uid;
+        }
+      } finally {
+        lock.release();
+      }
+
+      // SPAM — forwards às vezes caem no spam. Re-escaneia as últimas ~25 e deixa
+      // o dedup por Message-ID cuidar das repetições (não rastreado por UID).
+      for (const spamFolder of ["[Gmail]/Spam", "[Google Mail]/Spam", "Spam", "Junk"]) {
+        try {
+          const st = await client.status(spamFolder, { messages: true });
+          if (!st.messages) { break; }
+          const lock2 = await client.getMailboxLock(spamFolder);
+          try {
+            const start = Math.max(1, (st.messages ?? 0) - 24);
+            for await (const msg of client.fetch(
+              `${start}:*`,
+              { uid: true, source: true, envelope: true },
+            )) {
+              if (!acceptsEnvelope(msg.envelope, this.target, this.allowedSenders)) continue;
+              messages.push({ uid: msg.uid, raw: msg.source as Buffer, trackUid: false });
+            }
+          } finally {
+            lock2.release();
+          }
+          break; // achou a pasta de spam
+        } catch {
+          /* pasta não existe nesse idioma — tenta a próxima */
+        }
       }
     } finally {
-      lock.release();
       await client.logout();
     }
-    messages.sort((a, b) => a.uid - b.uid);
+    // INBOX (rastreado) primeiro, em ordem de UID; spam depois.
+    messages.sort((a, b) => {
+      const at = a.trackUid !== false, bt = b.trackUid !== false;
+      return at === bt ? a.uid - b.uid : at ? -1 : 1;
+    });
     return { messages, maxUid };
   }
 }

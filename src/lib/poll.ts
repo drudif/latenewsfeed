@@ -21,24 +21,28 @@ export async function runPoll(deps: PollDeps): Promise<{ ingested: number; skipp
     let ingested = 0;
 
     for (const msg of messages) {
+      const track = msg.trackUid !== false; // spam (false) não avança o lastUid do INBOX
       let normalized;
       try {
         normalized = await parseEmail(msg.raw);
       } catch (err) {
         // Unparseable MIME will never succeed — skip past it so it can't block the queue.
         console.error(`poll: unparseable message uid ${msg.uid}, skipping`, err);
-        processedUpTo = msg.uid;
+        if (track) processedUpTo = msg.uid;
         continue;
       }
+      // Mensagem não rastreada (spam) sem Message-ID não teria dedup → seria
+      // reinserida a cada ciclo. Só ingere spam com Message-ID.
+      if (!track && !normalized.messageId) continue;
       try {
-        await ingestInput(deps, normalized);
-        processedUpTo = msg.uid; // advance only after success
-        ingested += 1;
+        const id = await ingestInput(deps, normalized);
+        if (track) processedUpTo = msg.uid; // advance only after success
+        if (id) ingested += 1; // id null = duplicata (dedup), não conta
       } catch (err) {
         if (err instanceof EmptyInputError) {
           // Nothing ingestable (no text, no image) — skip past it, don't block newer mail.
           console.error(`poll: empty message uid ${msg.uid}, skipping`, err);
-          processedUpTo = msg.uid;
+          if (track) processedUpTo = msg.uid;
           continue;
         }
         // Transient failure (e.g. DB) — stop and retry from here next cycle.
