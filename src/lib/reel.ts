@@ -56,21 +56,41 @@ export async function extractReelAudio(
     const ctx = await browser.newContext({ userAgent: DESKTOP_UA, viewport: { width: 1280, height: 900 } });
     const page = await ctx.newPage();
 
-    // Ordem de chegada das faixas: a do reel-alvo carrega primeiro.
-    const bases = new Map<string, string>(); // base -> url completa (com auth)
-    const order: string[] = [];
+    // A página /reels/<id> é um FEED: o reel-alvo é o primeiro (índice 0) e há
+    // vizinhos pré-carregados. Como o autoplay é MUDO, qual faixa de áudio baixa
+    // é arbitrário. Então forçamos SÓ o vídeo 0 a tocar com som e neutralizamos
+    // os vizinhos — assim a faixa de áudio do alvo é a que baixa por inteiro.
+    const bases = new Map<string, { url: string; bytes: number }>();
     page.on("response", (res) => {
       const ct = res.headers()["content-type"] || "";
       const u = res.url();
       if (/\.mp4/.test(u) && ct.startsWith("video/")) {
         const base = u.split("?")[0];
-        if (!bases.has(base)) { bases.set(base, u); order.push(base); }
+        const bytes = parseInt(res.headers()["content-length"] || "0", 10) || 0;
+        const cur = bases.get(base);
+        if (cur) cur.bytes += bytes;
+        else bases.set(base, { url: u, bytes });
       }
     });
 
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs });
-    // deixa o player montar e começar a puxar as faixas
-    await page.waitForTimeout(7000);
+    await page.waitForTimeout(2500);
+    await page
+      .evaluate(() => {
+        const vids = Array.from(document.querySelectorAll("video"));
+        vids.forEach((v, i) => {
+          if (i === 0) {
+            v.muted = false;
+            v.volume = 1;
+            void v.play?.().catch(() => {});
+          } else {
+            try { v.pause(); v.removeAttribute("src"); v.load?.(); } catch { /* ignore */ }
+          }
+        });
+      })
+      .catch(() => {});
+    // deixa o reel-alvo tocar e puxar a faixa de áudio inteira
+    await page.waitForTimeout(8000);
 
     const caption = (await page
       .evaluate(() => {
@@ -80,17 +100,18 @@ export async function extractReelAudio(
       })
       .catch(() => null)) as string | null;
 
-    // Sonda cada faixa (primeiros 128KB) até achar áudio; então baixa inteira.
-    for (const base of order.slice(0, maxProbe)) {
-      const clean = stripByteRange(bases.get(base)!);
+    // Entre as faixas de áudio, a do alvo é a que mais baixou bytes (tocou por
+    // inteiro). Percorre da maior pra menor, sonda o box hdlr e baixa a 1ª áudio.
+    const ranked = Array.from(bases.values()).sort((a, b) => b.bytes - a.bytes).slice(0, maxProbe);
+    for (const { url: full } of ranked) {
+      const clean = stripByteRange(full);
       try {
         const probe = await page.request.get(clean, { headers: { range: "bytes=0-131071", accept: "*/*" } });
         if (!probe.ok() && probe.status() !== 206) continue;
-        const head = Buffer.from(await probe.body());
-        if (!isAudioTrack(head)) continue;
-        const full = await page.request.get(clean, { headers: { accept: "*/*" } });
-        if (!full.ok()) continue;
-        const audio = Buffer.from(await full.body());
+        if (!isAudioTrack(Buffer.from(await probe.body()))) continue;
+        const res = await page.request.get(clean, { headers: { accept: "*/*" } });
+        if (!res.ok()) continue;
+        const audio = Buffer.from(await res.body());
         if (audio.length > 20_000) return { audio, mediaType: "audio/mp4", caption };
       } catch {
         // tenta a próxima faixa
